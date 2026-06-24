@@ -86,6 +86,7 @@ export const artifactsRouter = createTRPCRouter({
         DESIGN: "DESIGN",
         SPREADSHEET: "SPREADSHEET",
         PRESENTATION: "PRESENTATION",
+        ROADMAP: "ROADMAP",
       } as const;
 
       const fileUrls = await generateExports(
@@ -103,8 +104,7 @@ export const artifactsRouter = createTRPCRouter({
           title: result.title,
           content: JSON.stringify(result.content),
           sourcePrompt: input.prompt,
-          connectorProvider:
-            (result.connectorProvider as ConnectorProvider) ?? "NATIVE",
+          connectorProvider: "NATIVE",
           connectorEmbedUrl: result.connectorEmbedUrl,
           connectorExternalUrl: result.connectorExternalUrl,
           fileUrls: JSON.stringify(fileUrls),

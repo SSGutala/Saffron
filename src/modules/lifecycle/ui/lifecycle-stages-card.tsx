@@ -5,6 +5,7 @@ import { CheckIcon, ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { getBriefStageData, previewStageData } from "@/lib/lifecycle/brief-keys";
 import { LIFECYCLE_STAGES } from "@/types/lifecycle";
 import { useTRPC } from "@/trpc/client";
 import type { BriefJson } from "@/types/lifecycle";
@@ -63,7 +64,7 @@ export function LifecycleStagesCard({
           disabled={generateDesigns.isPending}
           onClick={() => generateDesigns.mutate({ projectId })}
         >
-          {generateDesigns.isPending ? "Generating…" : "Generate 3 designs"}
+          {generateDesigns.isPending ? "Regenerating…" : "Regenerate mockups"}
         </Button>
       </div>
 
@@ -72,7 +73,7 @@ export function LifecycleStagesCard({
           const artifactId = artifactIds[stage.key];
           const artifact = artifacts?.find((a) => a.id === artifactId);
           const isOpen = openStage === stage.key;
-          const data = brief[stage.key];
+          const data = getBriefStageData(brief, stage.key);
 
           return (
             <div key={stage.key} className="border rounded-lg overflow-hidden">
@@ -92,7 +93,7 @@ export function LifecycleStagesCard({
               {isOpen && (
                 <div className="px-3 pb-3 space-y-2 border-t bg-muted/20">
                   <pre className="text-[10px] whitespace-pre-wrap max-h-32 overflow-auto text-muted-foreground">
-                    {JSON.stringify(data, null, 2).slice(0, 1200)}
+                    {previewStageData(data)}
                   </pre>
                   <div className="flex gap-2">
                     {artifactId && (

@@ -87,6 +87,7 @@ export const projectsRouter = createTRPCRouter({
           inspirationImages: input.images?.length
             ? JSON.stringify(input.images)
             : undefined,
+          lifecycleState: "INTAKE",
           messages: {
             create: {
               content: input.value,
@@ -97,6 +98,17 @@ export const projectsRouter = createTRPCRouter({
                 : undefined,
             },
           },
+        },
+      });
+
+      await prisma.message.create({
+        data: {
+          projectId: createdProject.id,
+          role: "ASSISTANT",
+          type: "RESULT",
+          content:
+            "Starting your product lifecycle — I'll generate your docs, then 3 design mockups, then build your app once you pick a direction.",
+          cardType: "lifecycle_start",
         },
       });
 

@@ -14,6 +14,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { Artifact } from "@/generated/prisma";
+import { normalizeArtifactContent } from "@/lib/artifacts/prose-formatter";
+import { CONNECTOR_CATALOG, suggestedProviderForKind } from "@/lib/connectors/types";
 import type { ArtifactContent } from "@/types/artifacts";
 import { useTRPC } from "@/trpc/client";
 import {
@@ -34,9 +36,10 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
   const [useConnector, setUseConnector] = useState(
     artifact.connectorProvider !== "NATIVE",
   );
+  const [showConnectors, setShowConnectors] = useState(false);
   const [content, setContent] = useState<ArtifactContent>(() => {
     try {
-      return JSON.parse(artifact.content) as ArtifactContent;
+      return normalizeArtifactContent(JSON.parse(artifact.content) as ArtifactContent);
     } catch {
       return {};
     }
@@ -66,6 +69,18 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
   );
   void connectDesign;
 
+  const connectArtifact = useMutation(
+    trpc.connectors.connectArtifact.mutationOptions({
+      onSuccess: () => {
+        toast.success("Connected — opening in embedded editor");
+        queryClient.invalidateQueries(
+          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
+        );
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
   const setConnector = useMutation(
     trpc.artifacts.setConnectorMode.mutationOptions({
       onSuccess: () => {
@@ -94,13 +109,12 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
     });
   };
 
-  const toggleConnector = () => {
-    const next = !useConnector;
-    setUseConnector(next);
-    setConnector.mutate({ id: artifact.id, useConnector: next });
-  };
-
   const fileUrls = parseFileUrls(artifact.fileUrls);
+
+  const disconnect = () => {
+    setUseConnector(false);
+    setConnector.mutate({ id: artifact.id, useConnector: false });
+  };
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -117,10 +131,35 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
           <PencilIcon className="size-3.5" />
           {editMode ? "Editing" : "Manual edit"}
         </Button>
-        <Button size="sm" variant={useConnector ? "default" : "outline"} onClick={toggleConnector}>
+        <Button size="sm" variant={useConnector ? "default" : "outline"} onClick={() => setShowConnectors((s) => !s)}>
           <PlugIcon className="size-3.5" />
-          {useConnector ? "Connector" : "Chai native"}
+          {useConnector ? "Connected" : "Connect tool"}
         </Button>
+        {useConnector && (
+          <Button size="sm" variant="outline" onClick={disconnect}>
+            Use native editor
+          </Button>
+        )}
+        {showConnectors && !useConnector && (
+          <div className="w-full basis-full flex flex-wrap gap-1.5 py-2 border-t mt-1">
+            {CONNECTOR_CATALOG.filter(
+              (c) => c.kinds.includes("*") || c.kinds.includes(artifact.kind),
+            ).map((c) => (
+              <Button
+                key={c.id}
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => {
+                  connectArtifact.mutate({ artifactId: artifact.id, provider: c.id });
+                  setShowConnectors(false);
+                }}
+              >
+                {c.icon} {c.label}
+              </Button>
+            ))}
+          </div>
+        )}
         {editMode && (
           <Button size="sm" onClick={handleSave} disabled={save.isPending}>
             <SaveIcon className="size-3.5" />
@@ -170,9 +209,15 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
           connectorProvider={artifact.connectorProvider}
           connectorEmbedUrl={artifact.connectorEmbedUrl}
           connectorExternalUrl={artifact.connectorExternalUrl}
+          connectorExternalId={artifact.connectorExternalId}
           useConnector={useConnector}
-          editMode={editMode}
+          editMode={editMode && !useConnector}
           onChange={setContent}
+          onConnectRequest={() => {
+            const provider =
+              suggestedProviderForKind(artifact.kind) ?? "GOOGLE_DOCS";
+            connectArtifact.mutate({ artifactId: artifact.id, provider });
+          }}
         />
       </div>
     </div>

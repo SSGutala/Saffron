@@ -8,7 +8,7 @@ import {
 } from "@/lib/lifecycle/orchestrator";
 import prisma from "@/lib/prisma";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import type { InspirationImage } from "@/types/lifecycle";
+import type { InspirationImage, StylePreview } from "@/types/lifecycle";
 
 const imageSchema = z.object({
   id: z.string(),
@@ -75,7 +75,9 @@ export const lifecycleRouter = createTRPCRouter({
     .input(
       z.object({
         projectId: z.string(),
-        styleId: z.string(),
+        /** Multi-select supported */
+        styleIds: z.array(z.string()).min(1),
+        styleId: z.string().optional(),
         opinion: z.string().optional(),
         images: z.array(imageSchema).optional(),
       }),
@@ -85,6 +87,18 @@ export const lifecycleRouter = createTRPCRouter({
         where: { id: input.projectId, userId: ctx.auth.userId },
       });
       if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (project.lifecycleState !== "DESIGNS_READY" && project.lifecycleState !== "BRIEF_READY") {
+        const hasFragment = await prisma.fragment.findFirst({
+          where: { message: { projectId: project.id } },
+        });
+        if (!hasFragment && project.lifecycleState !== "APP_READY") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Complete design selection before building the app.",
+          });
+        }
+      }
 
       if (input.images?.length) {
         let existing: InspirationImage[] = [];
@@ -105,19 +119,33 @@ export const lifecycleRouter = createTRPCRouter({
         });
       }
 
-      let styles = [];
+      const ids = input.styleIds.length ? input.styleIds : input.styleId ? [input.styleId] : [];
+      if (!ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Select at least one design" });
+
+      let styles: StylePreview[] = [];
       if (project.stylePreviewsJson) {
         try {
-          styles = JSON.parse(project.stylePreviewsJson);
+          styles = JSON.parse(project.stylePreviewsJson) as StylePreview[];
         } catch {
           styles = [];
         }
       }
-      const chosen = styles.find((s: { id: string }) => s.id === input.styleId);
-      if (!chosen) throw new TRPCError({ code: "BAD_REQUEST", message: "Style not found" });
+
+      const chosenStyles = styles.filter((s) => ids.includes(s.id));
+      if (!chosenStyles.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Selected designs not found" });
+      }
+
+      const combinedDirection = chosenStyles.map((s) => `${s.label}: ${s.direction}`).join("\n");
+      const combinedLabels = chosenStyles.map((s) => s.label).join(" + ");
 
       const chosenStyle = {
-        ...chosen,
+        id: chosenStyles.map((s) => s.id).join(","),
+        label: combinedLabels,
+        vibe: chosenStyles.map((s) => s.vibe).join(" · "),
+        direction: combinedDirection,
+        previewImageUrl: chosenStyles[0]?.previewImageUrl,
+        selectedIds: ids,
         opinion: input.opinion,
       };
 
@@ -134,7 +162,7 @@ export const lifecycleRouter = createTRPCRouter({
           projectId: project.id,
           role: "ASSISTANT",
           type: "RESULT",
-          content: `Building your app with the "${chosen.label}" design direction…`,
+          content: `Building your app using: ${combinedLabels}. Applying your design feedback…`,
           cardType: "building",
         },
       });
@@ -160,5 +188,28 @@ export const lifecycleRouter = createTRPCRouter({
         where: { id: artifact.id },
         data: { status: "APPROVED" },
       });
+    }),
+
+  repairApp: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        errorText: z.string().min(1),
+        userNote: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.auth.userId },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const { runCodeRepair } = await import("@/lib/code-agent");
+      void runCodeRepair({
+        projectId: input.projectId,
+        errorText: input.errorText,
+        userNote: input.userNote,
+      });
+      return { ok: true };
     }),
 });

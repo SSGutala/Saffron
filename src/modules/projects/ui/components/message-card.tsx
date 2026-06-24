@@ -4,7 +4,7 @@ import Image from "next/image";
 
 import { Card } from "@/components/ui/card";
 import { LifecycleStagesCard } from "@/modules/lifecycle/ui/lifecycle-stages-card";
-import { StyleCarousel } from "@/modules/lifecycle/ui/style-carousel";
+import { DesignGallery } from "@/modules/lifecycle/ui/design-gallery";
 import { Fragment, MessageRole, MessageType } from "@/generated/prisma";
 import type { BriefJson, StylePreview } from "@/types/lifecycle";
 import { cn } from "@/lib/utils";
@@ -145,7 +145,7 @@ const AssistantMessage = ({
         )}
 
         {cardType === "style_choices" && styles.length > 0 && (
-          <StyleCarousel projectId={projectId} styles={styles} />
+          <DesignGallery projectId={projectId} styles={styles} />
         )}
 
         {fragment && type === "RESULT" && (

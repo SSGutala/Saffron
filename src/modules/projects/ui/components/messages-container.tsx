@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
@@ -12,26 +14,44 @@ interface MessagesContainerProps {
   activeFragment: Fragment | null;
   setActiveFragment: (activeFragment: Fragment | null) => void;
   onOpenArtifact?: (artifactId: string) => void;
+  onLifecycleState?: (state: string | undefined) => void;
 }
+
+const GENERATING_STATES = new Set(["INTAKE", "BUILDING"]);
 
 const MessagesContainer = ({
   activeFragment,
   projectId,
   setActiveFragment,
   onOpenArtifact,
+  onLifecycleState,
 }: MessagesContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageIdRef = useRef<string | null>(null);
 
   const trpc = useTRPC();
+
+  const { data: lifecycle } = useQuery(
+    trpc.lifecycle.getStatus.queryOptions({ projectId }),
+  );
+  const isGenerating =
+    GENERATING_STATES.has(lifecycle?.lifecycleState ?? "") && !activeFragment;
+
   const { data: messages } = useQuery(
-    trpc.messages.getMany.queryOptions({ projectId }, { refetchInterval: 5000 })
+    trpc.messages.getMany.queryOptions(
+      { projectId },
+      { refetchInterval: isGenerating ? 1500 : 5000 },
+    ),
   );
 
   useEffect(() => {
-    const lastAssistantMessage = messages?.findLast(
-      (message) => message.role === "ASSISTANT"
-    );
+    onLifecycleState?.(lifecycle?.lifecycleState);
+  }, [lifecycle?.lifecycleState, onLifecycleState]);
+
+  useEffect(() => {
+    const lastAssistantMessage = messages
+      ? [...messages].reverse().find((message) => message.role === "ASSISTANT")
+      : undefined;
 
     if (
       lastAssistantMessage?.fragment &&
@@ -48,6 +68,7 @@ const MessagesContainer = ({
 
   const lastMessage = messages?.[messages?.length - 1];
   const isLastMessageUser = lastMessage?.role === "USER";
+  const showLoading = isLastMessageUser || isGenerating;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -70,7 +91,7 @@ const MessagesContainer = ({
             />
           ))}
 
-          {isLastMessageUser && <MessageLoading />}
+          {showLoading && <MessageLoading />}
 
           <div ref={bottomRef} />
         </div>

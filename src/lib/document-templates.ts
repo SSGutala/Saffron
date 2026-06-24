@@ -1,7 +1,7 @@
 export type DocTemplate = {
   documentType: string;
   label: string;
-  kind: "DOCUMENT" | "DIAGRAM" | "SPREADSHEET" | "PRESENTATION" | "DESIGN";
+  kind: "DOCUMENT" | "DIAGRAM" | "SPREADSHEET" | "PRESENTATION" | "DESIGN" | "ROADMAP";
   format: string;
   exportFormats: string[];
   purpose: string;
@@ -112,6 +112,15 @@ export const DOCUMENT_TEMPLATES: Record<string, DocTemplate> = {
       { key: "api", title: "API Design", guidance: "Endpoints and contracts." },
       { key: "data", title: "Data Model", guidance: "Entities and relationships." },
     ],
+  },
+  product_roadmap: {
+    documentType: "product_roadmap",
+    label: "Product Roadmap",
+    kind: "ROADMAP",
+    format: "roadmap",
+    exportFormats: ["pdf", "png", "md"],
+    purpose: "Visual Gantt-style product roadmap with swimlanes and milestones.",
+    sections: [],
   },
 };
 

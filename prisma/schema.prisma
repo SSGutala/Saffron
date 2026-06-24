@@ -53,6 +53,7 @@ enum ArtifactKind {
   DESIGN
   SPREADSHEET
   PRESENTATION
+  ROADMAP
 }
 
 enum ArtifactStatus {
@@ -68,6 +69,20 @@ enum ConnectorProvider {
   GOOGLE_SHEETS
   GOOGLE_SLIDES
   LUCIDCHART
+  MIRO
+  MICROSOFT_WORD
+  MICROSOFT_EXCEL
+  MICROSOFT_POWERPOINT
+  JIRA
+  CONFLUENCE
+  ATLASSIAN
+  ASANA
+  MONDAY
+  CLICKUP
+  NOTION
+  AIRTABLE
+  TRELLO
+  LINEAR
 }
 
 model Artifact {
@@ -87,6 +102,7 @@ model Artifact {
   connectorProvider   ConnectorProvider @default(NATIVE)
   connectorEmbedUrl   String?
   connectorExternalUrl String?
+  connectorExternalId  String?
   fileUrls            String?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -131,4 +147,18 @@ model Usage {
   key    String    @id
   points Int
   expire DateTime?
+}
+
+model ConnectorAccount {
+  id           String   @id @default(uuid())
+  userId       String
+  provider     ConnectorProvider
+  accountLabel String?
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, provider])
 }

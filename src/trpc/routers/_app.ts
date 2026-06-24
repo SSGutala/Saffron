@@ -1,4 +1,5 @@
 import { artifactsRouter } from "@/modules/artifacts/server/procedures";
+import { connectorsRouter } from "@/modules/connectors/server/procedures";
 import { lifecycleRouter } from "@/modules/lifecycle/server/procedures";
 import { messagesRouter } from "@/modules/messages/server/procedures";
 import { projectsRouter } from "@/modules/projects/server/procedures";
@@ -7,6 +8,7 @@ import { createTRPCRouter } from "../init";
 
 export const appRouter = createTRPCRouter({
   artifacts: artifactsRouter,
+  connectors: connectorsRouter,
   lifecycle: lifecycleRouter,
   messages: messagesRouter,
   projects: projectsRouter,

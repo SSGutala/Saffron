@@ -1,9 +1,11 @@
 "use client";
 
 import type { ArtifactContent, DesignVariant, FileUrls } from "@/types/artifacts";
+import { resolveEditRoute } from "@/lib/connectors/router";
 import { ConnectorEmbed } from "./connector-embed";
 import { DiagramEditor } from "./diagram-editor";
 import { DesignPicker } from "./design-picker";
+import { RoadmapEditor } from "./roadmap-editor";
 import { SlideEditor } from "./slide-editor";
 import { SpreadsheetEditor } from "./spreadsheet-editor";
 import { WordEditor } from "./word-editor";
@@ -15,9 +17,11 @@ interface ArtifactViewerBodyProps {
   connectorProvider: string;
   connectorEmbedUrl?: string | null;
   connectorExternalUrl?: string | null;
+  connectorExternalId?: string | null;
   useConnector: boolean;
   onChange: (content: ArtifactContent) => void;
   editMode: boolean;
+  onConnectRequest?: () => void;
 }
 
 export function ArtifactViewerBody({
@@ -26,22 +30,62 @@ export function ArtifactViewerBody({
   connectorProvider,
   connectorEmbedUrl,
   connectorExternalUrl,
+  connectorExternalId,
   useConnector,
   onChange,
   editMode,
+  onConnectRequest,
 }: ArtifactViewerBodyProps) {
+  const route = resolveEditRoute({
+    useConnector,
+    connectorProvider,
+    connectorEmbedUrl,
+    connectorExternalUrl,
+    connectorExternalId,
+  });
+
+  if (route.mode === "connect_required" && useConnector) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-4">
+        <p className="text-sm text-muted-foreground max-w-md">
+          Connect your {route.provider.replace(/_/g, " ")} account to edit this file in the real app — embedded inside Saffron.
+        </p>
+        {onConnectRequest && (
+          <button
+            type="button"
+            className="text-sm text-primary underline"
+            onClick={onConnectRequest}
+          >
+            Connect &amp; create file
+          </button>
+        )}
+        <div className="w-full max-w-2xl opacity-60 pointer-events-none">
+          {renderNative(kind, content, onChange, false)}
+        </div>
+      </div>
+    );
+  }
+
+  if (route.mode === "embed") {
+    return (
+      <ConnectorEmbed
+        provider={connectorProvider as keyof typeof import("@/types/artifacts").CONNECTOR_META}
+        embedUrl={route.embedUrl}
+        externalUrl={route.openUrl}
+      />
+    );
+  }
+
+  return renderNative(kind, content, onChange, editMode);
+}
+
+function renderNative(
+  kind: string,
+  content: ArtifactContent,
+  onChange: (content: ArtifactContent) => void,
+  editMode: boolean,
+) {
   if (kind === "DOCUMENT") {
-    if (useConnector && connectorProvider === "GOOGLE_DOCS") {
-      return (
-        <ConnectorEmbed
-          provider="GOOGLE_DOCS"
-          embedUrl={connectorEmbedUrl ?? "https://docs.google.com/document/d/demo/preview"}
-          externalUrl={connectorExternalUrl ?? "https://docs.google.com"}
-        >
-          <SectionDocView content={content} />
-        </ConnectorEmbed>
-      );
-    }
     if (editMode) {
       return (
         <WordEditor
@@ -53,25 +97,18 @@ export function ArtifactViewerBody({
     return <SectionDocView content={content} />;
   }
 
+  if (kind === "ROADMAP") {
+    return (
+      <RoadmapEditor
+        data={content.roadmapData ?? { title: content.label }}
+        editMode={editMode}
+        onChange={(roadmapData) => onChange({ ...content, roadmapData })}
+      />
+    );
+  }
+
   if (kind === "DIAGRAM") {
     const graph = content.diagramGraph ?? { nodes: [], edges: [] };
-    if (useConnector && connectorProvider === "LUCIDCHART") {
-      return (
-        <ConnectorEmbed
-          provider="LUCIDCHART"
-          embedUrl={
-            connectorEmbedUrl ??
-            "https://lucid.app/embeds/demo"
-          }
-          externalUrl={connectorExternalUrl ?? "https://lucidchart.com"}
-        >
-          <DiagramEditor
-            graph={graph}
-            onChange={(diagramGraph) => onChange({ ...content, diagramGraph })}
-          />
-        </ConnectorEmbed>
-      );
-    }
     if (editMode) {
       return (
         <DiagramEditor
@@ -90,25 +127,6 @@ export function ArtifactViewerBody({
 
   if (kind === "SPREADSHEET") {
     const sheets = content.spreadsheetData?.sheets ?? [];
-    if (useConnector && connectorProvider === "GOOGLE_SHEETS") {
-      return (
-        <ConnectorEmbed
-          provider="GOOGLE_SHEETS"
-          embedUrl={
-            connectorEmbedUrl ??
-            "https://docs.google.com/spreadsheets/d/demo/preview"
-          }
-          externalUrl={connectorExternalUrl ?? "https://sheets.google.com"}
-        >
-          <SpreadsheetEditor
-            sheets={sheets}
-            onChange={(s) =>
-              onChange({ ...content, spreadsheetData: { sheets: s } })
-            }
-          />
-        </ConnectorEmbed>
-      );
-    }
     if (editMode) {
       return (
         <SpreadsheetEditor
@@ -131,20 +149,6 @@ export function ArtifactViewerBody({
 
   if (kind === "PRESENTATION") {
     const slides = content.slides ?? [];
-    if (useConnector && connectorProvider === "GOOGLE_SLIDES") {
-      return (
-        <ConnectorEmbed
-          provider="GOOGLE_SLIDES"
-          embedUrl={
-            connectorEmbedUrl ??
-            "https://docs.google.com/presentation/d/demo/preview"
-          }
-          externalUrl={connectorExternalUrl ?? "https://slides.google.com"}
-        >
-          <SlideEditor slides={slides} onChange={(s) => onChange({ ...content, slides: s })} />
-        </ConnectorEmbed>
-      );
-    }
     if (editMode) {
       return (
         <SlideEditor slides={slides} onChange={(s) => onChange({ ...content, slides: s })} />
@@ -160,14 +164,13 @@ export function ArtifactViewerBody({
       <DesignPicker
         variants={content.designVariants ?? []}
         selectedId={content.selectedDesignId}
-        useConnector={useConnector}
-        connectorEmbedUrl={connectorEmbedUrl}
-        connectorExternalUrl={connectorExternalUrl}
-        onSelect={(id: string, variant: DesignVariant) =>
+        useConnector={false}
+        connectorEmbedUrl={null}
+        connectorExternalUrl={null}
+        onSelect={(id: string) =>
           onChange({
             ...content,
             selectedDesignId: id,
-            designVariants: content.designVariants,
           })
         }
       />

@@ -15,8 +15,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserControl } from "@/components/user-control";
 import { Fragment } from "@/generated/prisma";
+import type { LifecycleState } from "@/generated/prisma";
 import { FileCollection } from "@/types";
 import { FragmentWeb } from "../components/fragment-web";
+import { GenerationPanel } from "../components/generation-panel";
 import { MessagesContainer } from "../components/messages-container";
 import { ProjectHeader } from "../components/project-header";
 import { ArtifactPanel } from "@/modules/artifacts/ui/components/artifact-panel";
@@ -33,6 +35,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
   const [activeFragment, setActiveFragment] = useState<Fragment | null>(null);
   const [tabState, setTabState] = useState<"preview" | "code" | "files">("preview");
   const [focusArtifactId, setFocusArtifactId] = useState<string | null>(null);
+  const [lifecycleState, setLifecycleState] = useState<LifecycleState | undefined>();
 
   return (
     <div className="h-screen">
@@ -53,6 +56,9 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                 projectId={projectId}
                 activeFragment={activeFragment}
                 setActiveFragment={setActiveFragment}
+                onLifecycleState={(state) =>
+                  setLifecycleState(state as LifecycleState | undefined)
+                }
                 onOpenArtifact={(id) => {
                   setFocusArtifactId(id);
                   setTabState("files");
@@ -98,8 +104,15 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                 <UserControl />
               </div>
             </div>
-            <TabsContent value="preview">
-              {!!activeFragment && <FragmentWeb data={activeFragment} />}
+            <TabsContent value="preview" className="min-h-0 h-[calc(100vh-3rem)]">
+              {activeFragment ? (
+                <FragmentWeb data={activeFragment} projectId={projectId} />
+              ) : (
+                <GenerationPanel
+                  lifecycleState={lifecycleState}
+                  hasFragment={!!activeFragment}
+                />
+              )}
             </TabsContent>
             <TabsContent value="files" className="min-h-0 h-[calc(100vh-3rem)]">
               <ArtifactPanel
@@ -107,14 +120,19 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                 initialArtifactId={focusArtifactId}
               />
             </TabsContent>
-            <TabsContent value="code" className="min-h-0">
-              {!!activeFragment?.files && (
+            <TabsContent value="code" className="min-h-0 h-[calc(100vh-3rem)]">
+              {activeFragment?.files ? (
                 <FileExplorer
                   files={
                     typeof activeFragment.files === "string"
                       ? (JSON.parse(activeFragment.files) as FileCollection)
                       : (activeFragment.files as FileCollection)
                   }
+                />
+              ) : (
+                <GenerationPanel
+                  lifecycleState={lifecycleState}
+                  hasFragment={!!activeFragment}
                 />
               )}
             </TabsContent>
