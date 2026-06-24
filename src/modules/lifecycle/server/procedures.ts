@@ -161,4 +161,44 @@ export const lifecycleRouter = createTRPCRouter({
         data: { status: "APPROVED" },
       });
     }),
+
+  ensureAppBuild: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.auth.userId },
+        include: {
+          messages: { include: { fragment: true } },
+        },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const hasFragment = project.messages.some((m) => m.fragment);
+      if (hasFragment || project.lifecycleState === "BUILDING") {
+        return { started: false };
+      }
+
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { lifecycleState: "BUILDING" },
+      });
+
+      await prisma.message.create({
+        data: {
+          projectId: project.id,
+          role: "ASSISTANT",
+          type: "RESULT",
+          content: "Picking up where we left off — building your app now…",
+          cardType: "building",
+        },
+      });
+
+      void runCodeAgent({
+        value: project.sourcePrompt ?? "Build the app",
+        projectId: project.id,
+        briefJson: project.briefJson ?? undefined,
+      });
+
+      return { started: true };
+    }),
 });

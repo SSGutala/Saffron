@@ -1,5 +1,6 @@
 import { generateExports } from "@/lib/artifacts/export";
 import prisma from "@/lib/prisma";
+import { getBriefStageData } from "./brief-keys";
 import {
   generateEnterpriseBrief,
   stageContentToArtifactContent,
@@ -33,11 +34,16 @@ export async function runLifecycleBrief({
     const appTitle =
       (brief.appSpec as { appTitle?: string })?.appTitle ?? "Product";
 
+    const current = await prisma.project.findUnique({ where: { id: projectId } });
     await prisma.project.update({
       where: { id: projectId },
       data: {
         briefJson: JSON.stringify(brief),
-        lifecycleState: "BRIEF_READY",
+        lifecycleState:
+          current?.lifecycleState === "BUILDING" ||
+          current?.lifecycleState === "APP_READY"
+            ? current.lifecycleState
+            : "BRIEF_READY",
         sourcePrompt: prompt,
         inspirationImages: images?.length ? JSON.stringify(images) : undefined,
       },
@@ -46,7 +52,7 @@ export async function runLifecycleBrief({
     const artifactIds: Record<string, string> = {};
 
     for (const stage of LIFECYCLE_STAGES) {
-      const data = brief[stage.key];
+      const data = getBriefStageData(brief, stage.key);
       if (!data) continue;
 
       const content = stageContentToArtifactContent(stage.key, data);

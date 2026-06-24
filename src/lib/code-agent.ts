@@ -18,6 +18,11 @@ export async function runCodeAgent({
   briefJson?: string;
 }) {
   try {
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { lifecycleState: "BUILDING", updatedAt: new Date() },
+    });
+
     const messages = await prisma.message.findMany({
       where: { projectId },
       orderBy: { createdAt: "asc" },
