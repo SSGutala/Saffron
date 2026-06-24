@@ -10,29 +10,26 @@ interface GenerationPanelProps {
   hasFragment: boolean;
 }
 
-const STATUS_COPY: Record<
-  LifecycleState,
-  { title: string; detail: string }
-> = {
+const STATUS_COPY: Record<LifecycleState, { title: string; detail: string }> = {
   INTAKE: {
-    title: "Mapping your product lifecycle…",
-    detail: "Generating intake, workflow, data model, and app spec while your demo builds.",
+    title: "Step 1 — Generating your docs…",
+    detail: "Creating intake, product brief, workflow, data model, automation, UX spec, and roadmap.",
   },
   BRIEF_READY: {
-    title: "Lifecycle ready — building your app…",
-    detail: "Your 7 enterprise artifacts are in the Files tab. The live demo is still generating.",
+    title: "Step 2 — Creating design mockups…",
+    detail: "Your artifacts are in the Files tab. Saffron is generating 3 static UI mockups next.",
   },
   DESIGNS_READY: {
-    title: "Pick a design or wait for the build…",
-    detail: "Design previews are ready in chat. Your app demo will appear here when the build finishes.",
+    title: "Step 3 — Pick your design",
+    detail: "Select one or more mockups in chat, add feedback, then click Build app. Your live demo appears here after that.",
   },
   BUILDING: {
-    title: "Building your app…",
-    detail: "Writing React components, wiring state, and preparing your live Sandpack preview.",
+    title: "Step 4 — Building your app…",
+    detail: "Writing React components from your selected design direction and product brief.",
   },
   APP_READY: {
     title: "Almost there…",
-    detail: "Finalizing your preview.",
+    detail: "Finalizing your live preview.",
   },
 };
 
@@ -43,7 +40,7 @@ export function GenerationPanel({
   if (hasFragment) return null;
 
   const status =
-    (lifecycleState && STATUS_COPY[lifecycleState]) ?? STATUS_COPY.BUILDING;
+    (lifecycleState && STATUS_COPY[lifecycleState]) ?? STATUS_COPY.INTAKE;
 
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[320px] px-8 text-center gap-6">

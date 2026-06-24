@@ -2,7 +2,6 @@ import { TRPCError } from "@trpc/server";
 import { generateSlug } from "random-word-slugs";
 import { z } from "zod";
 
-import { runCodeAgent } from "@/lib/code-agent";
 import { runLifecycleBrief } from "@/lib/lifecycle/orchestrator";
 import prisma from "@/lib/prisma";
 import { consumeCredits } from "@/lib/usage";
@@ -88,6 +87,7 @@ export const projectsRouter = createTRPCRouter({
           inspirationImages: input.images?.length
             ? JSON.stringify(input.images)
             : undefined,
+          lifecycleState: "INTAKE",
           messages: {
             create: {
               content: input.value,
@@ -107,19 +107,9 @@ export const projectsRouter = createTRPCRouter({
           role: "ASSISTANT",
           type: "RESULT",
           content:
-            "Building your app now. I'm also generating your full product lifecycle (7 artifacts) in parallel — watch the Demo tab for your live preview.",
-          cardType: "building",
+            "Starting your product lifecycle — I'll generate your docs, then 3 design mockups, then build your app once you pick a direction.",
+          cardType: "lifecycle_start",
         },
-      });
-
-      await prisma.project.update({
-        where: { id: createdProject.id },
-        data: { lifecycleState: "BUILDING" },
-      });
-
-      void runCodeAgent({
-        value: input.value,
-        projectId: createdProject.id,
       });
 
       void runLifecycleBrief({

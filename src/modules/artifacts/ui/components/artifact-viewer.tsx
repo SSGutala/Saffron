@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { Artifact } from "@/generated/prisma";
+import { suggestedProviderForKind } from "@/lib/connectors/types";
 import type { ArtifactContent } from "@/types/artifacts";
 import { useTRPC } from "@/trpc/client";
 import {
@@ -66,6 +67,18 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
   );
   void connectDesign;
 
+  const connectArtifact = useMutation(
+    trpc.connectors.connectArtifact.mutationOptions({
+      onSuccess: () => {
+        toast.success("Connected — opening in embedded editor");
+        queryClient.invalidateQueries(
+          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
+        );
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
   const setConnector = useMutation(
     trpc.artifacts.setConnectorMode.mutationOptions({
       onSuccess: () => {
@@ -97,7 +110,15 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
   const toggleConnector = () => {
     const next = !useConnector;
     setUseConnector(next);
-    setConnector.mutate({ id: artifact.id, useConnector: next });
+    if (next) {
+      const provider =
+        artifact.connectorProvider !== "NATIVE"
+          ? artifact.connectorProvider
+          : suggestedProviderForKind(artifact.kind) ?? "GOOGLE_DOCS";
+      connectArtifact.mutate({ artifactId: artifact.id, provider });
+    } else {
+      setConnector.mutate({ id: artifact.id, useConnector: false });
+    }
   };
 
   const fileUrls = parseFileUrls(artifact.fileUrls);
@@ -170,9 +191,15 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
           connectorProvider={artifact.connectorProvider}
           connectorEmbedUrl={artifact.connectorEmbedUrl}
           connectorExternalUrl={artifact.connectorExternalUrl}
+          connectorExternalId={artifact.connectorExternalId}
           useConnector={useConnector}
-          editMode={editMode}
+          editMode={editMode && !useConnector}
           onChange={setContent}
+          onConnectRequest={() => {
+            const provider =
+              suggestedProviderForKind(artifact.kind) ?? "GOOGLE_DOCS";
+            connectArtifact.mutate({ artifactId: artifact.id, provider });
+          }}
         />
       </div>
     </div>

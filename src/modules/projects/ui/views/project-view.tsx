@@ -106,7 +106,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
             </div>
             <TabsContent value="preview" className="min-h-0 h-[calc(100vh-3rem)]">
               {activeFragment ? (
-                <FragmentWeb data={activeFragment} />
+                <FragmentWeb data={activeFragment} projectId={projectId} />
               ) : (
                 <GenerationPanel
                   lifecycleState={lifecycleState}

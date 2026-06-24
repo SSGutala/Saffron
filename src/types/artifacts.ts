@@ -30,6 +30,7 @@ export type ArtifactContent = {
   slides?: PresentationSlide[];
   designVariants?: DesignVariant[];
   selectedDesignId?: string;
+  roadmapData?: RoadmapData;
 };
 
 export type DiagramNode = {
@@ -67,6 +68,30 @@ export type DesignVariant = {
   figmaEmbedUrl?: string;
   figmaExternalUrl?: string;
   previewColors?: string[];
+  previewImageUrl?: string;
+};
+
+export type RoadmapLane = {
+  id: string;
+  label: string;
+  color: string;
+};
+
+export type RoadmapItem = {
+  id: string;
+  title: string;
+  laneId: string;
+  startQuarter: number;
+  spanQuarters: number;
+  type: "bar" | "milestone";
+  color?: string;
+};
+
+export type RoadmapData = {
+  title?: string;
+  quarters?: string[];
+  lanes?: RoadmapLane[];
+  items?: RoadmapItem[];
 };
 
 export type FileUrls = Partial<
@@ -80,4 +105,5 @@ export const CONNECTOR_META = {
   GOOGLE_SHEETS: { label: "Google Sheets", icon: "📊", expandLabel: "Open in Google Sheets" },
   GOOGLE_SLIDES: { label: "Google Slides", icon: "📽️", expandLabel: "Open in Google Slides" },
   LUCIDCHART: { label: "Lucidchart", icon: "🔀", expandLabel: "Open in Lucidchart" },
+  MIRO: { label: "Miro", icon: "🗺️", expandLabel: "Open in Miro" },
 } as const;

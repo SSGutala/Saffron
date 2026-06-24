@@ -64,7 +64,7 @@ export function LifecycleStagesCard({
           disabled={generateDesigns.isPending}
           onClick={() => generateDesigns.mutate({ projectId })}
         >
-          {generateDesigns.isPending ? "Generating…" : "Generate 3 designs"}
+          {generateDesigns.isPending ? "Regenerating…" : "Regenerate mockups"}
         </Button>
       </div>
 

@@ -117,7 +117,7 @@ export const messagesRouter = createTRPCRouter({
       const hasApp = existingProject.messages.some((m) => m.fragment);
       const lifecycleState = existingProject.lifecycleState;
 
-      if (hasApp || lifecycleState === "APP_READY" || lifecycleState === "BUILDING") {
+      if (hasApp || lifecycleState === "APP_READY") {
         let chosenStyle;
         if (existingProject.chosenStyleJson) {
           try {
@@ -136,13 +136,13 @@ export const messagesRouter = createTRPCRouter({
       }
 
       const lower = input.value.toLowerCase();
-      const wantsDesigns =
-        lifecycleState === "DESIGNS_READY" ||
+      const wantsDesignRegen =
         lower.includes("design") ||
         lower.includes("style") ||
-        lower.includes("regenerate");
+        lower.includes("regenerate") ||
+        lower.includes("mockup");
 
-      if (wantsDesigns && lifecycleState !== "INTAKE") {
+      if (wantsDesignRegen && lifecycleState !== "INTAKE") {
         void runDesignGeneration({
           projectId: existingProject.id,
           userId: ctx.auth.userId,
@@ -230,7 +230,19 @@ export const messagesRouter = createTRPCRouter({
             role: "ASSISTANT",
             type: "RESULT",
             content:
-              "Still mapping your product lifecycle — hang tight. Your inspiration images are saved.",
+              "Still generating your product docs — next come 3 design mockups, then you pick a direction and I build the app.",
+          },
+        });
+      }
+
+      if (lifecycleState === "DESIGNS_READY" && !hasApp) {
+        await prisma.message.create({
+          data: {
+            projectId: existingProject.id,
+            role: "ASSISTANT",
+            type: "RESULT",
+            content:
+              "Select one or more design mockups in chat and click Build app — that's step 3 before your live preview.",
           },
         });
       }

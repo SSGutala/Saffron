@@ -22,8 +22,11 @@ export type StylePreview = {
   label: string;
   vibe: string;
   direction: string;
-  previewCode: string;
+  /** Static mockup image (SVG data URL) — not functional code */
+  previewImageUrl: string;
   previewColors: string[];
+  /** @deprecated legacy Sandpack previews — do not use for new designs */
+  previewCode?: string;
 };
 
 export type ChosenStyle = {
@@ -31,6 +34,9 @@ export type ChosenStyle = {
   label: string;
   vibe: string;
   direction: string;
+  previewImageUrl?: string;
   previewCode?: string;
   opinion?: string;
+  /** User may select multiple design directions */
+  selectedIds?: string[];
 };

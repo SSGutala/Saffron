@@ -4,23 +4,52 @@ import {
   SandpackLayout,
   SandpackPreview,
   SandpackProvider,
+  useSandpack,
 } from "@codesandbox/sandpack-react";
 import { useTheme } from "next-themes";
 import { RefreshCcwIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
+import { AutofixBanner } from "@/components/autofix-banner";
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { Fragment } from "@/generated/prisma";
 import { FileCollection } from "@/types";
+import { useTRPC } from "@/trpc/client";
 
 interface FragmentWebProps {
   data: Fragment;
+  projectId?: string;
 }
 
-const FragmentWeb = ({ data }: FragmentWebProps) => {
+function SandpackErrorWatcher({
+  onError,
+}: {
+  onError: (msg: string) => void;
+}) {
+  const { sandpack } = useSandpack();
+  useEffect(() => {
+    const err = sandpack.error;
+    if (err) onError(typeof err === "string" ? err : String(err));
+  }, [sandpack.error, onError]);
+  return null;
+}
+
+const FragmentWeb = ({ data, projectId }: FragmentWebProps) => {
   const { resolvedTheme } = useTheme();
   const [key, setKey] = useState(0);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const trpc = useTRPC();
+
+  const repair = useMutation(
+    trpc.lifecycle.repairApp.mutationOptions({
+      onSuccess: () => {
+        setRuntimeError(null);
+        setKey((k) => k + 1);
+      },
+    }),
+  );
 
   const files = useMemo(() => {
     try {
@@ -49,6 +78,17 @@ const FragmentWeb = ({ data }: FragmentWebProps) => {
 
   return (
     <div className="flex flex-col w-full h-full">
+      {runtimeError && projectId && (
+        <AutofixBanner
+          message="The preview hit an error. Saffron can try to fix it automatically."
+          showFixButton
+          isRecovering={repair.isPending}
+          onFix={() =>
+            repair.mutate({ projectId, errorText: runtimeError })
+          }
+          onDismiss={() => setRuntimeError(null)}
+        />
+      )}
       <div className="p-2 border-b bg-sidebar flex items-center gap-x-2">
         <Hint text="Refresh preview" side="bottom" align="start">
           <Button size="sm" variant="outline" onClick={() => setKey((k) => k + 1)}>
@@ -74,6 +114,7 @@ const FragmentWeb = ({ data }: FragmentWebProps) => {
             recompileDelay: 400,
           }}
         >
+          <SandpackErrorWatcher onError={setRuntimeError} />
           <SandpackLayout style={{ height: "100%", border: "none" }}>
             <SandpackPreview
               showNavigator={false}

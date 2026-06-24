@@ -16,6 +16,7 @@ const KIND_MAP: Record<string, ArtifactKind> = {
   DESIGN: "DESIGN",
   SPREADSHEET: "SPREADSHEET",
   PRESENTATION: "PRESENTATION",
+  ROADMAP: "ROADMAP",
 };
 
 export async function runLifecycleBrief({
@@ -41,7 +42,8 @@ export async function runLifecycleBrief({
         briefJson: JSON.stringify(brief),
         lifecycleState:
           current?.lifecycleState === "BUILDING" ||
-          current?.lifecycleState === "APP_READY"
+          current?.lifecycleState === "APP_READY" ||
+          current?.lifecycleState === "DESIGNS_READY"
             ? current.lifecycleState
             : "BRIEF_READY",
         sourcePrompt: prompt,
@@ -74,19 +76,73 @@ export async function runLifecycleBrief({
           title: `${appTitle} — ${stage.label}`,
           content,
           sourcePrompt: prompt,
-          connectorProvider:
-            stage.kind === "DIAGRAM"
-              ? "LUCIDCHART"
-              : stage.kind === "DESIGN"
-                ? "FIGMA"
-                : stage.kind === "SPREADSHEET"
-                  ? "GOOGLE_SHEETS"
-                  : "NATIVE",
+          connectorProvider: "NATIVE",
           fileUrls: JSON.stringify(fileUrls),
         },
       });
       artifactIds[stage.key] = artifact.id;
     }
+
+    // Product roadmap as first-class artifact
+    const roadmapContent = JSON.stringify({
+      documentType: "product_roadmap",
+      label: "Product Roadmap",
+      format: "roadmap",
+      roadmapData: {
+        title: `${appTitle} Roadmap`,
+        quarters: ["Q1", "Q2", "Q3", "Q4"],
+        lanes: [
+          { id: "product", label: "Product", color: "#c96342" },
+          { id: "design", label: "Design", color: "#8b5cf6" },
+          { id: "engineering", label: "Engineering", color: "#0ea5e9" },
+        ],
+        items: [
+          {
+            id: "rm-1",
+            title: "MVP launch",
+            laneId: "product",
+            startQuarter: 0,
+            spanQuarters: 1,
+            type: "milestone",
+            color: "#c96342",
+          },
+          {
+            id: "rm-2",
+            title: "Core workflow",
+            laneId: "engineering",
+            startQuarter: 0,
+            spanQuarters: 2,
+            type: "bar",
+            color: "#0ea5e9",
+          },
+        ],
+      },
+      sections: [
+        {
+          key: "roadmap",
+          title: "Roadmap summary",
+          body: `Visual roadmap for ${appTitle}`,
+        },
+      ],
+    });
+
+    const roadmapArtifact = await prisma.artifact.create({
+      data: {
+        projectId,
+        userId,
+        kind: "ROADMAP",
+        artifactType: "product_roadmap",
+        stageOrder: 8,
+        title: `${appTitle} — Product Roadmap`,
+        content: roadmapContent,
+        sourcePrompt: prompt,
+        connectorProvider: "NATIVE",
+        fileUrls: JSON.stringify(
+          await generateExports(JSON.parse(roadmapContent), `${appTitle} Roadmap`, ["pdf", "md"]),
+        ),
+      },
+    });
+    artifactIds.product_roadmap = roadmapArtifact.id;
 
     await prisma.message.create({
       data: {
@@ -94,11 +150,14 @@ export async function runLifecycleBrief({
         role: "ASSISTANT",
         type: "RESULT",
         content:
-          "I've mapped your idea into a full product lifecycle — 7 editable stages you can refine before we design and build the app.",
+          "I've mapped your idea into a full product lifecycle — 7 editable stages plus a visual roadmap. Generating 3 design mockups next…",
         cardType: "lifecycle_brief",
         metadata: JSON.stringify({ brief, artifactIds, appTitle }),
       },
     });
+
+    // Step 2: auto-generate design mockups after docs
+    void runDesignGeneration({ projectId, userId });
 
     return { brief, artifactIds };
   } catch (err) {
@@ -109,7 +168,7 @@ export async function runLifecycleBrief({
         role: "ASSISTANT",
         type: "ERROR",
         content:
-          "Something went wrong generating your product lifecycle. Please try again or send another message.",
+          "Something went wrong generating your product lifecycle. Saffron will retry — or send another message to continue.",
       },
     });
     throw err;
@@ -157,6 +216,16 @@ export async function runDesignGeneration({
     }
   }
 
+  await prisma.message.create({
+    data: {
+      projectId,
+      role: "ASSISTANT",
+      type: "RESULT",
+      content: "Creating 3 static design mockups for you to choose from…",
+      cardType: "generating_designs",
+    },
+  });
+
   const styles = await generateStylePreviews({
     prompt: project.sourcePrompt,
     brief,
@@ -177,7 +246,8 @@ export async function runDesignGeneration({
       projectId,
       role: "ASSISTANT",
       type: "RESULT",
-      content: "Pick a visual direction — I'll use it when building your full app.",
+      content:
+        "Pick one or more design directions, tell me what you like, then I'll build your app.",
       cardType: "style_choices",
       metadata: JSON.stringify({ styles }),
     },

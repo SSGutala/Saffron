@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { Fragment } from "@/generated/prisma";
@@ -30,25 +30,12 @@ const MessagesContainer = ({
   const lastAssistantMessageIdRef = useRef<string | null>(null);
 
   const trpc = useTRPC();
-  const ensureBuild = useMutation(trpc.lifecycle.ensureAppBuild.mutationOptions());
-  const ensureBuildCalled = useRef(false);
 
   const { data: lifecycle } = useQuery(
     trpc.lifecycle.getStatus.queryOptions({ projectId }),
   );
   const isGenerating =
     GENERATING_STATES.has(lifecycle?.lifecycleState ?? "") && !activeFragment;
-
-  useEffect(() => {
-    if (ensureBuildCalled.current || activeFragment) return;
-    if (
-      lifecycle?.lifecycleState === "BRIEF_READY" ||
-      lifecycle?.lifecycleState === "INTAKE"
-    ) {
-      ensureBuildCalled.current = true;
-      ensureBuild.mutate({ projectId });
-    }
-  }, [lifecycle?.lifecycleState, activeFragment, projectId, ensureBuild]);
 
   const { data: messages } = useQuery(
     trpc.messages.getMany.queryOptions(
