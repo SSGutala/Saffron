@@ -42,6 +42,7 @@ export default function SignInContent() {
     const res = await fetch("/api/auth/signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify(values),
     });
     if (!res.ok) {

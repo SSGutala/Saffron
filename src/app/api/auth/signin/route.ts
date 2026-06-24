@@ -34,6 +34,13 @@ export async function POST(req: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json({ error: "Sign in failed" }, { status: 500 });
+    console.error("[signin]", error);
+    const msg =
+      error instanceof Error &&
+      (error.message.includes("no such table") ||
+        error.message.includes("Unable to open the database"))
+        ? "Database not initialized. Run: npm run db:push"
+        : "Sign in failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

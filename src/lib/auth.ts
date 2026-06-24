@@ -11,6 +11,13 @@ const secret = () =>
 
 const COOKIE = "fts_session";
 
+function shouldUseSecureCookies() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  if (appUrl.startsWith("https://")) return true;
+  if (appUrl.includes("localhost") || appUrl.includes("127.0.0.1")) return false;
+  return process.env.NODE_ENV === "production";
+}
+
 export type Session = {
   userId: string;
   email: string;
@@ -41,7 +48,7 @@ export async function createSession(userId: string) {
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 30,
     path: "/",
