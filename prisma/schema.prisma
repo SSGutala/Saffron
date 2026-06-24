@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  plan         Plan     @default(FREE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum LifecycleState {
+  INTAKE
+  BRIEF_READY
+  DESIGNS_READY
+  BUILDING
+  APP_READY
+}
+
+model Project {
+  id                 String          @id @default(uuid())
+  name               String
+  userId             String
+  lifecycleState     LifecycleState  @default(INTAKE)
+  briefJson          String?
+  stylePreviewsJson  String?
+  chosenStyleJson    String?
+  inspirationImages  String?
+  sourcePrompt       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  messages           Message[]
+  artifacts          Artifact[]
+}
+
+enum ArtifactKind {
+  DOCUMENT
+  DIAGRAM
+  DESIGN
+  SPREADSHEET
+  PRESENTATION
+}
+
+enum ArtifactStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
+
+enum ConnectorProvider {
+  NATIVE
+  FIGMA
+  GOOGLE_DOCS
+  GOOGLE_SHEETS
+  GOOGLE_SLIDES
+  LUCIDCHART
+}
+
+model Artifact {
+  id                  String            @id @default(uuid())
+  projectId           String
+  project             Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId              String
+  kind                ArtifactKind
+  artifactType        String
+  stageKey            String?
+  stageOrder          Int?
+  title               String
+  content             String
+  version             Int               @default(1)
+  status              ArtifactStatus    @default(DRAFT)
+  sourcePrompt        String?
+  connectorProvider   ConnectorProvider @default(NATIVE)
+  connectorEmbedUrl   String?
+  connectorExternalUrl String?
+  fileUrls            String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum MessageType {
+  RESULT
+  ERROR
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  content   String
+  role      MessageRole
+  type      MessageType
+  cardType  String?
+  metadata  String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  fragment  Fragment?
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Fragment {
+  id         String   @id @default(uuid())
+  messageId  String   @unique
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  sandboxUrl String   @default("sandpack")
+  title      String
+  files      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Usage {
+  key    String    @id
+  points Int
+  expire DateTime?
+}

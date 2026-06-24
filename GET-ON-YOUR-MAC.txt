@@ -1,0 +1,53 @@
+SAFFRON — GET THIS ON YOUR MAC
+================================
+
+Two files in this folder contain EVERYTHING:
+
+1. saffron-complete.tar.gz  — full source code (use this)
+2. saffron-all-changes.bundle — git history (optional)
+
+DOWNLOAD FROM CURSOR
+--------------------
+1. In Cursor's file explorer (left sidebar), open:
+   /home/ubuntu/fts/
+2. Right-click "saffron-complete.tar.gz" → Download
+3. It lands in your Mac Downloads folder
+
+INSTALL ON YOUR MAC
+-------------------
+Open Terminal and run:
+
+  cd ~/Downloads
+  tar -xzf saffron-complete.tar.gz
+  mv fts ~/Saffron
+  cd ~/Saffron
+  npm install
+  cp .env.example .env
+
+Edit .env — set these:
+  DATABASE_URL="file:./dev.db"
+  NEXT_PUBLIC_APP_URL="http://localhost:9000"
+  AUTH_SECRET="any-random-string"
+  GROQ_API_KEY="your-groq-key"
+
+Then:
+  npm run db:push
+  npm run build
+  npm run start
+
+Open: http://localhost:9000
+
+PUSH TO GITHUB (after unzip)
+----------------------------
+  cd ~/Saffron
+  git init
+  git remote add origin https://github.com/SSGutala/Saffron.git
+  git add -A
+  git commit -m "Saffron full build"
+  git push -u origin main
+
+Or restore full git history from bundle:
+  git clone https://github.com/SSGutala/Saffron.git ~/Saffron
+  cd ~/Saffron
+  git pull ~/Downloads/saffron-all-changes.bundle cursor/lovable-clone-08ab
+  git push -u origin cursor/lovable-clone-08ab
