@@ -1,6 +1,12 @@
 import type { BriefJson, InspirationImage } from "@/types/lifecycle";
 import { LIFECYCLE_STAGES } from "@/types/lifecycle";
 import { completeChat, hasAIKey } from "@/lib/ai-provider";
+import {
+  briefToDiagramGraph,
+  stageDataToProse,
+} from "@/lib/artifacts/prose-formatter";
+
+export { briefToDiagramGraph } from "@/lib/artifacts/prose-formatter";
 
 export const BRIEF_STAGE_KEYS = LIFECYCLE_STAGES.map((s) => s.key);
 
@@ -134,95 +140,29 @@ export async function generateEnterpriseBrief(
   return callBriefAI(prompt, images);
 }
 
-export function briefToDiagramGraph(workflowMap: Record<string, unknown>) {
-  const steps = (workflowMap?.steps as { step: string; actor: string }[]) ?? [];
-  const nodes = steps.map((s, i) => ({
-    id: String(i + 1),
-    position: { x: 80 + i * 200, y: 80 },
-    data: { label: s.step, lane: s.actor },
-  }));
-  const edges = nodes.slice(0, -1).map((n, i) => ({
-    id: `e${i}`,
-    source: n.id,
-    target: nodes[i + 1].id,
-  }));
-  return { nodes, edges };
-}
-
 export function stageContentToArtifactContent(
   stageKey: string,
   data: unknown,
+  prompt = "",
 ): string {
-  if (stageKey === "workflow_map") {
-    const graph = briefToDiagramGraph(data as Record<string, unknown>);
-    return JSON.stringify({
-      documentType: stageKey,
-      label: "Workflow Map",
-      diagramGraph: graph,
-      sections: [
-        {
-          key: "workflow",
-          title: "Process",
-          body: JSON.stringify(data, null, 2),
-        },
-      ],
-    });
-  }
-  if (stageKey === "data_model") {
-    const dm = data as { fields?: unknown[]; primaryEntity?: string };
-    const fields = (dm.fields ?? []) as { name: string; label: string }[];
-    return JSON.stringify({
-      documentType: stageKey,
-      label: "Data Model",
-      spreadsheetData: {
-        sheets: [
-          {
-            name: dm.primaryEntity ?? "entities",
-            columns: ["Field", "Label", "Type", "Required"],
-            rows: fields.map((f: { name: string; label: string; type?: string; required?: boolean }) => [
-              f.name,
-              f.label,
-              (f as { type?: string }).type ?? "text",
-              String((f as { required?: boolean }).required ?? false),
-            ]),
-          },
-        ],
-      },
-      sections: [{ key: "model", title: "Data Model", body: JSON.stringify(data, null, 2) }],
-    });
-  }
-  if (stageKey === "ux_recommendation") {
-    const ux = data as { visualTheme?: { primaryColor?: string }; primaryScreens?: unknown[] };
-    return JSON.stringify({
-      documentType: stageKey,
-      label: "UX Recommendation",
-      designVariants: [
-        {
-          id: "recommended",
-          name: "Recommended",
-          description: (data as { rationale?: string }).rationale,
-          previewColors: [
-            ux.visualTheme?.primaryColor ?? "#c96342",
-            "#1f2937",
-            "#f8fafc",
-          ],
-        },
-      ],
-      selectedDesignId: "recommended",
-      sections: [{ key: "ux", title: "UX", body: JSON.stringify(data, null, 2) }],
-    });
-  }
+  const prose = stageDataToProse(stageKey, data, prompt);
   return JSON.stringify({
     documentType: stageKey,
-    label: stageKey.replace(/_/g, " "),
-    format: "formal_doc",
-    sections: [
-      {
-        key: stageKey,
-        title: stageKey.replace(/_/g, " "),
-        body: typeof data === "string" ? data : JSON.stringify(data, null, 2),
-      },
-    ],
-    nativeHtml: `<h1>${stageKey.replace(/_/g, " ")}</h1><pre>${JSON.stringify(data, null, 2)}</pre>`,
+    label: prose.meta?.title ?? stageKey.replace(/_/g, " "),
+    format:
+      stageKey === "workflow_map"
+        ? "diagram"
+        : stageKey === "data_model"
+          ? "spreadsheet"
+          : stageKey === "ux_recommendation"
+            ? "mockup"
+            : "formal_doc",
+    meta: prose.meta,
+    sections: prose.sections,
+    nativeHtml: prose.nativeHtml,
+    diagramGraph: prose.diagramGraph,
+    spreadsheetData: prose.spreadsheetData,
+    designVariants: prose.designVariants,
+    selectedDesignId: prose.selectedDesignId,
   });
 }

@@ -36,39 +36,59 @@ export function DesignPicker({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="grid grid-cols-3 gap-3 p-4 border-b shrink-0">
+    <div className="h-full flex flex-col bg-zinc-100">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 border-b bg-white shrink-0">
         {variants.map((v) => (
           <button
             key={v.id}
             type="button"
             onClick={() => onSelect(v.id, v)}
             className={cn(
-              "rounded-xl border p-4 text-left transition-all hover:border-primary",
+              "rounded-xl border p-3 text-left transition-all hover:border-primary hover:shadow-sm",
               selectedId === v.id && "ring-2 ring-primary border-primary",
             )}
           >
-            <div className="flex gap-1 mb-3">
-              {(v.previewColors ?? ["#333"]).map((c) => (
-                <div
-                  key={c}
-                  className="h-8 flex-1 rounded"
-                  style={{ background: c }}
-                />
-              ))}
-            </div>
+            {v.previewImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={v.previewImageUrl}
+                alt={v.name}
+                className="w-full aspect-[800/520] object-cover rounded-lg mb-2 border"
+              />
+            ) : (
+              <div className="flex gap-1 mb-3">
+                {(v.previewColors ?? ["#333"]).map((c) => (
+                  <div key={c} className="h-8 flex-1 rounded" style={{ background: c }} />
+                ))}
+              </div>
+            )}
             <p className="font-semibold text-sm">{v.name}</p>
-            <p className="text-xs text-muted-foreground mt-1">{v.description}</p>
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{v.description}</p>
           </button>
         ))}
       </div>
-      <div className="flex-1 min-h-0 bg-zinc-100 flex items-center justify-center p-8">
-        {selected ? (
-          <div className="w-full max-w-4xl aspect-video bg-white rounded-xl shadow-2xl border overflow-hidden flex flex-col">
-            <div className="h-8 bg-zinc-800 flex items-center px-3 gap-1.5">
-              <div className="size-2 rounded-full bg-red-400" />
-              <div className="size-2 rounded-full bg-yellow-400" />
-              <div className="size-2 rounded-full bg-green-400" />
+
+      <div className="flex-1 min-h-0 flex flex-col p-6 overflow-auto">
+        <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide font-medium">
+          App preview — recommended vision
+        </p>
+        {selected?.previewImageUrl ? (
+          <div className="flex-1 flex items-start justify-center">
+            <div className="w-full max-w-5xl rounded-xl border bg-white shadow-2xl overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selected.previewImageUrl}
+                alt={`${selected.name} app mockup`}
+                className="w-full h-auto"
+              />
+            </div>
+          </div>
+        ) : selected ? (
+          <div className="w-full max-w-4xl mx-auto aspect-video bg-white rounded-xl shadow-2xl border overflow-hidden flex flex-col">
+            <div className="h-9 bg-zinc-800 flex items-center px-3 gap-1.5">
+              <div className="size-2.5 rounded-full bg-red-400" />
+              <div className="size-2.5 rounded-full bg-yellow-400" />
+              <div className="size-2.5 rounded-full bg-green-400" />
             </div>
             <div
               className="flex-1 p-8"
@@ -77,11 +97,16 @@ export function DesignPicker({
               }}
             >
               <h2 className="text-2xl font-bold text-white">{selected.name}</h2>
-              <p className="text-white/80 mt-2">{selected.description}</p>
+              <p className="text-white/80 mt-2 max-w-lg">{selected.description}</p>
             </div>
           </div>
         ) : (
-          <p className="text-muted-foreground">No design variants</p>
+          <p className="text-muted-foreground text-center py-12">No design preview available</p>
+        )}
+        {selected?.description && (
+          <p className="text-sm text-gray-600 mt-4 max-w-3xl mx-auto text-center">
+            {selected.description}
+          </p>
         )}
       </div>
     </div>

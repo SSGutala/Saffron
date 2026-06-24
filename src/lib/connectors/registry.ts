@@ -1,8 +1,11 @@
 import type { ArtifactContent } from "@/types/artifacts";
 import type { ConnectorAdapter, ConnectorFileMeta, ConnectorProviderId } from "./types";
 
-/** Stub adapters — OAuth env vars enable real flows later. */
-function stubAdapter(id: ConnectorProviderId, label: string, demoPath: string): ConnectorAdapter {
+function stubAdapter(
+  id: ConnectorProviderId,
+  label: string,
+  demoPath: string,
+): ConnectorAdapter {
   return {
     id,
     label,
@@ -30,17 +33,34 @@ function stubAdapter(id: ConnectorProviderId, label: string, demoPath: string): 
   };
 }
 
-const ADAPTERS: Record<ConnectorProviderId, ConnectorAdapter> = {
-  FIGMA: stubAdapter("FIGMA", "Figma", "https://www.figma.com/file"),
-  GOOGLE_DOCS: stubAdapter("GOOGLE_DOCS", "Google Docs", "https://docs.google.com/document/d"),
-  GOOGLE_SHEETS: stubAdapter("GOOGLE_SHEETS", "Google Sheets", "https://docs.google.com/spreadsheets/d"),
-  GOOGLE_SLIDES: stubAdapter("GOOGLE_SLIDES", "Google Slides", "https://docs.google.com/presentation/d"),
-  LUCIDCHART: stubAdapter("LUCIDCHART", "Lucidchart", "https://lucid.app/documents"),
-  MIRO: stubAdapter("MIRO", "Miro", "https://miro.com/app/board"),
-  MICROSOFT_WORD: stubAdapter("MICROSOFT_WORD", "Microsoft Word", "https://word.office.com"),
-  MICROSOFT_EXCEL: stubAdapter("MICROSOFT_EXCEL", "Microsoft Excel", "https://excel.office.com"),
-  MICROSOFT_POWERPOINT: stubAdapter("MICROSOFT_POWERPOINT", "PowerPoint", "https://powerpoint.office.com"),
+const STUB_PATHS: Record<string, [string, string]> = {
+  FIGMA: ["Figma", "https://www.figma.com/file"],
+  GOOGLE_DOCS: ["Google Docs", "https://docs.google.com/document/d"],
+  GOOGLE_SHEETS: ["Google Sheets", "https://docs.google.com/spreadsheets/d"],
+  GOOGLE_SLIDES: ["Google Slides", "https://docs.google.com/presentation/d"],
+  LUCIDCHART: ["Lucidchart", "https://lucid.app/documents"],
+  MIRO: ["Miro", "https://miro.com/app/board"],
+  MICROSOFT_WORD: ["Microsoft Word", "https://word.office.com"],
+  MICROSOFT_EXCEL: ["Microsoft Excel", "https://excel.office.com"],
+  MICROSOFT_POWERPOINT: ["PowerPoint", "https://powerpoint.office.com"],
+  JIRA: ["Jira", "https://your-domain.atlassian.net/browse"],
+  CONFLUENCE: ["Confluence", "https://your-domain.atlassian.net/wiki"],
+  ATLASSIAN: ["Atlassian", "https://your-domain.atlassian.net"],
+  ASANA: ["Asana", "https://app.asana.com/0"],
+  MONDAY: ["Monday.com", "https://monday.com/boards"],
+  CLICKUP: ["ClickUp", "https://app.clickup.com"],
+  NOTION: ["Notion", "https://www.notion.so"],
+  AIRTABLE: ["Airtable", "https://airtable.com"],
+  TRELLO: ["Trello", "https://trello.com/b"],
+  LINEAR: ["Linear", "https://linear.app/team/issue"],
 };
+
+const ADAPTERS = Object.fromEntries(
+  Object.entries(STUB_PATHS).map(([id, [label, path]]) => [
+    id,
+    stubAdapter(id as ConnectorProviderId, label, path),
+  ]),
+) as Record<ConnectorProviderId, ConnectorAdapter>;
 
 export function getConnectorAdapter(id: ConnectorProviderId): ConnectorAdapter {
   return ADAPTERS[id];

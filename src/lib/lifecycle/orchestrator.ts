@@ -57,7 +57,7 @@ export async function runLifecycleBrief({
       const data = getBriefStageData(brief, stage.key);
       if (!data) continue;
 
-      const content = stageContentToArtifactContent(stage.key, data);
+      const content = stageContentToArtifactContent(stage.key, data, prompt);
       const parsed = JSON.parse(content);
       const fileUrls = await generateExports(
         parsed,
@@ -90,31 +90,20 @@ export async function runLifecycleBrief({
       format: "roadmap",
       roadmapData: {
         title: `${appTitle} Roadmap`,
-        quarters: ["Q1", "Q2", "Q3", "Q4"],
+        quarters: ["Q1 2026", "Q2 2026", "Q3 2026", "Q4 2026"],
         lanes: [
           { id: "product", label: "Product", color: "#c96342" },
           { id: "design", label: "Design", color: "#8b5cf6" },
           { id: "engineering", label: "Engineering", color: "#0ea5e9" },
+          { id: "marketing", label: "Marketing", color: "#22c55e" },
         ],
         items: [
-          {
-            id: "rm-1",
-            title: "MVP launch",
-            laneId: "product",
-            startQuarter: 0,
-            spanQuarters: 1,
-            type: "milestone",
-            color: "#c96342",
-          },
-          {
-            id: "rm-2",
-            title: "Core workflow",
-            laneId: "engineering",
-            startQuarter: 0,
-            spanQuarters: 2,
-            type: "bar",
-            color: "#0ea5e9",
-          },
+          { id: "rm-1", title: "Discovery & requirements", laneId: "product", startQuarter: 0, spanQuarters: 1, type: "bar", color: "#c96342" },
+          { id: "rm-2", title: "MVP launch", laneId: "product", startQuarter: 1, spanQuarters: 0, type: "milestone", color: "#c96342" },
+          { id: "rm-3", title: "UI/UX design system", laneId: "design", startQuarter: 0, spanQuarters: 2, type: "bar", color: "#8b5cf6" },
+          { id: "rm-4", title: "Core build", laneId: "engineering", startQuarter: 1, spanQuarters: 2, type: "bar", color: "#0ea5e9" },
+          { id: "rm-5", title: "Beta release", laneId: "engineering", startQuarter: 2, spanQuarters: 0, type: "milestone", color: "#0ea5e9" },
+          { id: "rm-6", title: "Go-to-market", laneId: "marketing", startQuarter: 2, spanQuarters: 2, type: "bar", color: "#22c55e" },
         ],
       },
       sections: [

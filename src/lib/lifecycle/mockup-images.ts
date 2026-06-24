@@ -24,7 +24,13 @@ export const STYLE_PRESETS = [
   },
 ] as const;
 
-type Preset = (typeof STYLE_PRESETS)[number];
+type Preset = {
+  id: string;
+  label: string;
+  vibe: string;
+  direction: string;
+  previewColors: readonly string[];
+};
 
 function esc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
