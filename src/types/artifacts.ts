@@ -74,10 +74,36 @@ export type FileUrls = Partial<
 >;
 
 export const CONNECTOR_META = {
-  NATIVE: { label: "Chai Editor", icon: "✏️" },
+  NATIVE: { label: "Saffron Editor", icon: "✏️" },
   FIGMA: { label: "Figma", icon: "🎨", expandLabel: "Open in Figma" },
   GOOGLE_DOCS: { label: "Google Docs", icon: "📝", expandLabel: "Open in Google Docs" },
   GOOGLE_SHEETS: { label: "Google Sheets", icon: "📊", expandLabel: "Open in Google Sheets" },
   GOOGLE_SLIDES: { label: "Google Slides", icon: "📽️", expandLabel: "Open in Google Slides" },
   LUCIDCHART: { label: "Lucidchart", icon: "🔀", expandLabel: "Open in Lucidchart" },
 } as const;
+
+export function isArtifactConnected(artifact: {
+  connectorProvider: string;
+  connectorEmbedUrl?: string | null;
+}): boolean {
+  return (
+    artifact.connectorProvider !== "NATIVE" && !!artifact.connectorEmbedUrl
+  );
+}
+
+export function connectorProviderForArtifactKind(
+  kind: string,
+): keyof typeof CONNECTOR_META {
+  switch (kind) {
+    case "DIAGRAM":
+      return "LUCIDCHART";
+    case "SPREADSHEET":
+      return "GOOGLE_SHEETS";
+    case "PRESENTATION":
+      return "GOOGLE_SLIDES";
+    case "DESIGN":
+      return "FIGMA";
+    default:
+      return "GOOGLE_DOCS";
+  }
+}

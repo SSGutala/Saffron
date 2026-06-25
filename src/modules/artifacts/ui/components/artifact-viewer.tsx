@@ -16,7 +16,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Artifact } from "@/generated/prisma";
 import type { ArtifactContent } from "@/types/artifacts";
+import {
+  CONNECTOR_META,
+  connectorProviderForArtifactKind,
+  isArtifactConnected,
+} from "@/types/artifacts";
 import { useTRPC } from "@/trpc/client";
+import { ConnectConnectorSheet } from "./connect-connector-sheet";
 import {
   ArtifactViewerBody,
   downloadFileUrl,
@@ -28,52 +34,60 @@ interface ArtifactViewerProps {
   onClose: () => void;
 }
 
+function parseArtifactContent(raw: string): ArtifactContent {
+  try {
+    const parsed = JSON.parse(raw) as ArtifactContent & {
+      handedOff?: boolean;
+      title?: string;
+    };
+    if (parsed.handedOff) {
+      return { meta: { title: parsed.title } };
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
 export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [editMode, setEditMode] = useState(false);
-  const [useConnector, setUseConnector] = useState(
-    artifact.connectorProvider !== "NATIVE",
+  const [connectOpen, setConnectOpen] = useState(false);
+  const connected = isArtifactConnected(artifact);
+  const targetProvider = connectorProviderForArtifactKind(artifact.kind);
+  const connectorLabel = CONNECTOR_META[targetProvider].label;
+
+  const [content, setContent] = useState<ArtifactContent>(() =>
+    parseArtifactContent(artifact.content),
   );
-  const [content, setContent] = useState<ArtifactContent>(() => {
-    try {
-      return JSON.parse(artifact.content) as ArtifactContent;
-    } catch {
-      return {};
-    }
-  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries(
+      trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
+    );
+  };
 
   const save = useMutation(
     trpc.artifacts.updateContent.mutationOptions({
       onSuccess: () => {
         toast.success("Saved");
-        queryClient.invalidateQueries(
-          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
-        );
+        invalidate();
         setEditMode(false);
       },
       onError: (e) => toast.error(e.message),
     }),
   );
 
-  const connectDesign = useMutation(
-    trpc.artifacts.connectDesign.mutationOptions({
+  const connect = useMutation(
+    trpc.artifacts.connect.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries(
-          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
-        );
+        toast.success(`Connected to ${connectorLabel}`);
+        setConnectOpen(false);
+        setEditMode(false);
+        invalidate();
       },
-    }),
-  );
-  void connectDesign;
-
-  const setConnector = useMutation(
-    trpc.artifacts.setConnectorMode.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries(
-          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
-        );
-      },
+      onError: (e) => toast.error(e.message),
     }),
   );
 
@@ -91,9 +105,7 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
     trpc.lifecycle.approveStage.mutationOptions({
       onSuccess: () => {
         toast.success("Approved");
-        queryClient.invalidateQueries(
-          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
-        );
+        invalidate();
       },
     }),
   );
@@ -106,12 +118,6 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
     });
   };
 
-  const toggleConnector = () => {
-    const next = !useConnector;
-    setUseConnector(next);
-    setConnector.mutate({ id: artifact.id, useConnector: next });
-  };
-
   const fileUrls = parseFileUrls(artifact.fileUrls);
 
   return (
@@ -121,25 +127,35 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
           <XIcon className="size-4" />
         </Button>
         <span className="font-semibold text-sm truncate flex-1">{artifact.title}</span>
-        <Button
-          size="sm"
-          variant={editMode ? "default" : "outline"}
-          onClick={() => setEditMode((e) => !e)}
-        >
-          <PencilIcon className="size-3.5" />
-          {editMode ? "Editing" : "Manual edit"}
-        </Button>
-        <Button size="sm" variant={useConnector ? "default" : "outline"} onClick={toggleConnector}>
-          <PlugIcon className="size-3.5" />
-          {useConnector ? "Connector" : "Chai native"}
-        </Button>
-        {editMode && (
-          <Button size="sm" onClick={handleSave} disabled={save.isPending}>
-            <SaveIcon className="size-3.5" />
-            Save
-          </Button>
+
+        {!connected && (
+          <>
+            <Button
+              size="sm"
+              variant={editMode ? "default" : "outline"}
+              onClick={() => setEditMode((e) => !e)}
+            >
+              <PencilIcon className="size-3.5" />
+              {editMode ? "Editing" : "Manual edit"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setConnectOpen(true)}
+            >
+              <PlugIcon className="size-3.5" />
+              Connect {connectorLabel}
+            </Button>
+            {editMode && (
+              <Button size="sm" onClick={handleSave} disabled={save.isPending}>
+                <SaveIcon className="size-3.5" />
+                Save
+              </Button>
+            )}
+          </>
         )}
-        {artifact.stageKey && artifact.status !== "APPROVED" && (
+
+        {artifact.stageKey && artifact.status !== "APPROVED" && !connected && (
           <Button
             size="sm"
             variant="outline"
@@ -150,16 +166,20 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
             Approve
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => exportFiles.mutate({ id: artifact.id })}
-          disabled={exportFiles.isPending}
-        >
-          <DownloadIcon className="size-3.5" />
-          Export PDF
-        </Button>
-        {fileUrls.docx && (
+
+        {!connected && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportFiles.mutate({ id: artifact.id })}
+            disabled={exportFiles.isPending}
+          >
+            <DownloadIcon className="size-3.5" />
+            Export PDF
+          </Button>
+        )}
+
+        {!connected && fileUrls.docx && (
           <Button
             size="sm"
             variant="outline"
@@ -168,7 +188,7 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
             Word
           </Button>
         )}
-        {fileUrls.xlsx && (
+        {!connected && fileUrls.xlsx && (
           <Button
             size="sm"
             variant="outline"
@@ -177,15 +197,16 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
             Excel
           </Button>
         )}
-        {artifact.connectorExternalUrl && (
+        {connected && artifact.connectorExternalUrl && (
           <Button size="sm" variant="outline" asChild>
             <a href={artifact.connectorExternalUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLinkIcon className="size-3.5" />
-              Open app
+              Open in {connectorLabel}
             </a>
           </Button>
         )}
       </div>
+
       <div className="flex-1 min-h-0">
         <ArtifactViewerBody
           kind={artifact.kind}
@@ -193,11 +214,21 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
           connectorProvider={artifact.connectorProvider}
           connectorEmbedUrl={artifact.connectorEmbedUrl}
           connectorExternalUrl={artifact.connectorExternalUrl}
-          useConnector={useConnector}
           editMode={editMode}
           onChange={setContent}
         />
       </div>
+
+      <ConnectConnectorSheet
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        provider={targetProvider}
+        artifactTitle={artifact.title}
+        isPending={connect.isPending}
+        onConnect={(embedUrl, externalUrl) =>
+          connect.mutate({ id: artifact.id, embedUrl, externalUrl })
+        }
+      />
     </div>
   );
 }

@@ -47,14 +47,7 @@ async function upsertStageArtifact({
     console.error(`[lifecycle] export failed for ${stage.key}:`, err);
   }
 
-  const connectorProvider =
-    stage.kind === "DIAGRAM"
-      ? "LUCIDCHART"
-      : stage.kind === "DESIGN"
-        ? "FIGMA"
-        : stage.kind === "SPREADSHEET"
-          ? "GOOGLE_SHEETS"
-          : "NATIVE";
+  const connectorProvider = "NATIVE";
 
   if (existingId) {
     const updated = await prisma.artifact.update({

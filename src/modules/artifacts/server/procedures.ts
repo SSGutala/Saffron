@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import {
+  handedOffContent,
+  prepareConnectorHandoff,
+} from "@/lib/connectors/handoff";
 import { generateArtifactContent, refineArtifactContent } from "@/lib/artifacts/document-agent";
 import { generateExports } from "@/lib/artifacts/export";
 import { resolveTemplate } from "@/lib/ai-generate";
@@ -13,7 +17,7 @@ import { listDocumentTypes } from "@/lib/document-templates";
 import prisma from "@/lib/prisma";
 import type { ArtifactContent } from "@/types/artifacts";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { ConnectorProvider } from "@/generated/prisma";
+import type { ConnectorProvider } from "@/generated/prisma";
 
 const imageSchema = z.object({
   id: z.string(),
@@ -73,7 +77,61 @@ export const artifactsRouter = createTRPCRouter({
         }
       }
 
+      for (const artifact of artifacts) {
+        if (
+          artifact.connectorProvider !== "NATIVE" &&
+          !artifact.connectorEmbedUrl
+        ) {
+          await prisma.artifact.update({
+            where: { id: artifact.id },
+            data: { connectorProvider: "NATIVE" },
+          });
+          artifact.connectorProvider = "NATIVE";
+        }
+      }
+
       return artifacts;
+    }),
+
+  connect: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        embedUrl: z.string().url(),
+        externalUrl: z.string().url().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const artifact = await prisma.artifact.findFirst({
+        where: { id: input.id, userId: ctx.auth.userId },
+      });
+      if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (artifact.connectorProvider !== "NATIVE" && artifact.connectorEmbedUrl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This file is already connected to an external app.",
+        });
+      }
+
+      const content = parseContent(artifact.content);
+      const { provider, fileUrls } = await prepareConnectorHandoff({
+        kind: artifact.kind,
+        content,
+        title: artifact.title,
+      });
+
+      return prisma.artifact.update({
+        where: { id: artifact.id },
+        data: {
+          connectorProvider: provider,
+          connectorEmbedUrl: input.embedUrl,
+          connectorExternalUrl: input.externalUrl ?? input.embedUrl,
+          content: handedOffContent(artifact.title),
+          fileUrls: JSON.stringify(fileUrls),
+          version: artifact.version + 1,
+        },
+      });
     }),
 
   getOne: protectedProcedure
@@ -162,6 +220,12 @@ export const artifactsRouter = createTRPCRouter({
         include: { project: true },
       });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      if (existing.connectorProvider !== "NATIVE" && existing.connectorEmbedUrl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Connected files are edited in the external app.",
+        });
+      }
 
       const template = resolveTemplate(existing.artifactType);
       const currentContent = parseContent(existing.content);
@@ -204,6 +268,12 @@ export const artifactsRouter = createTRPCRouter({
         where: { id: input.id, userId: ctx.auth.userId },
       });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      if (existing.connectorProvider !== "NATIVE" && existing.connectorEmbedUrl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Connected files are edited in the external app.",
+        });
+      }
 
       const content = parseContent(input.content);
       const fileUrls = await generateExports(
@@ -245,41 +315,7 @@ export const artifactsRouter = createTRPCRouter({
         where: { id: input.id },
         data: {
           content: JSON.stringify(content),
-          connectorProvider: "FIGMA",
-          connectorEmbedUrl: variant.figmaEmbedUrl,
-          connectorExternalUrl: variant.figmaExternalUrl,
         },
-      });
-    }),
-
-  setConnectorMode: protectedProcedure
-    .input(
-      z.object({
-        id: z.string(),
-        useConnector: z.boolean(),
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
-      const artifact = await prisma.artifact.findFirst({
-        where: { id: input.id, userId: ctx.auth.userId },
-      });
-      if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
-
-      const provider = input.useConnector
-        ? artifact.kind === "DIAGRAM"
-          ? "LUCIDCHART"
-          : artifact.kind === "SPREADSHEET"
-            ? "GOOGLE_SHEETS"
-            : artifact.kind === "PRESENTATION"
-              ? "GOOGLE_SLIDES"
-              : artifact.kind === "DESIGN"
-                ? "FIGMA"
-                : "GOOGLE_DOCS"
-        : "NATIVE";
-
-      return prisma.artifact.update({
-        where: { id: input.id },
-        data: { connectorProvider: provider as ConnectorProvider },
       });
     }),
 

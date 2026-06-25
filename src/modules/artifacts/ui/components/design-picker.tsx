@@ -1,39 +1,21 @@
 "use client";
 
 import type { DesignVariant } from "@/types/artifacts";
-import { ConnectorEmbed } from "./connector-embed";
 import { cn } from "@/lib/utils";
 
 interface DesignPickerProps {
   variants: DesignVariant[];
   selectedId?: string;
-  useConnector: boolean;
-  connectorEmbedUrl?: string | null;
-  connectorExternalUrl?: string | null;
   onSelect: (id: string, variant: DesignVariant) => void;
 }
 
 export function DesignPicker({
   variants,
   selectedId,
-  useConnector,
-  connectorEmbedUrl,
-  connectorExternalUrl,
   onSelect,
 }: DesignPickerProps) {
   const selected =
     variants.find((v) => v.id === selectedId) ?? variants[0];
-
-  if (useConnector && selected?.figmaEmbedUrl) {
-    return (
-      <ConnectorEmbed
-        provider="FIGMA"
-        embedUrl={connectorEmbedUrl ?? selected.figmaEmbedUrl}
-        externalUrl={connectorExternalUrl ?? selected.figmaExternalUrl}
-        title={selected.name}
-      />
-    );
-  }
 
   return (
     <div className="h-full flex flex-col">

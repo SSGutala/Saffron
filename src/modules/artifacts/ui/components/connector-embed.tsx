@@ -16,7 +16,6 @@ interface ConnectorEmbedProps {
   embedUrl?: string | null;
   externalUrl?: string | null;
   title?: string;
-  children?: React.ReactNode;
 }
 
 export function ConnectorEmbed({
@@ -24,13 +23,8 @@ export function ConnectorEmbed({
   embedUrl,
   externalUrl,
   title,
-  children,
 }: ConnectorEmbedProps) {
   const meta = CONNECTOR_META[provider];
-
-  if (provider === "NATIVE" || !embedUrl) {
-    return <>{children}</>;
-  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -48,12 +42,14 @@ export function ConnectorEmbed({
                   Web
                 </a>
               </Button>
-              <Button size="sm" variant="outline" asChild>
-                <a href={externalUrl.replace("https://", "figma://")} rel="noopener noreferrer">
-                  <MonitorIcon className="size-3.5" />
-                  Desktop
-                </a>
-              </Button>
+              {provider === "FIGMA" && (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={externalUrl.replace("https://", "figma://")} rel="noopener noreferrer">
+                    <MonitorIcon className="size-3.5" />
+                    Desktop
+                  </a>
+                </Button>
+              )}
             </>
           )}
           {embedUrl && (
@@ -76,7 +72,7 @@ export function ConnectorEmbed({
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8 text-center">
-            Connect your {meta.label} account to edit here. Use native Chai editor meanwhile.
+            Connect your {meta.label} account to edit this file here.
           </div>
         )}
       </div>

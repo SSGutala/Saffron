@@ -75,7 +75,7 @@ function demoDesigns(prompt: string): DesignVariant[] {
       id: "d1",
       name: "Minimal",
       description: "Clean, whitespace-forward layout",
-      figmaEmbedUrl: `https://www.figma.com/embed?embed_host=chai&url=https://www.figma.com/file/demo-minimal-${base}`,
+      figmaEmbedUrl: `https://www.figma.com/embed?embed_host=saffron&url=https://www.figma.com/file/demo-minimal-${base}`,
       figmaExternalUrl: `https://www.figma.com/file/demo-minimal-${base}`,
       previewColors: ["#fafafa", "#111827", "#6366f1"],
     },
@@ -83,7 +83,7 @@ function demoDesigns(prompt: string): DesignVariant[] {
       id: "d2",
       name: "Bold",
       description: "High-contrast, vibrant accent colors",
-      figmaEmbedUrl: `https://www.figma.com/embed?embed_host=chai&url=https://www.figma.com/file/demo-bold-${base}`,
+      figmaEmbedUrl: `https://www.figma.com/embed?embed_host=saffron&url=https://www.figma.com/file/demo-bold-${base}`,
       figmaExternalUrl: `https://www.figma.com/file/demo-bold-${base}`,
       previewColors: ["#0f172a", "#f97316", "#ffffff"],
     },
@@ -91,7 +91,7 @@ function demoDesigns(prompt: string): DesignVariant[] {
       id: "d3",
       name: "Enterprise",
       description: "Professional, data-dense dashboard",
-      figmaEmbedUrl: `https://www.figma.com/embed?embed_host=chai&url=https://www.figma.com/file/demo-enterprise-${base}`,
+      figmaEmbedUrl: `https://www.figma.com/embed?embed_host=saffron&url=https://www.figma.com/file/demo-enterprise-${base}`,
       figmaExternalUrl: `https://www.figma.com/file/demo-enterprise-${base}`,
       previewColors: ["#1e293b", "#3b82f6", "#e2e8f0"],
     },
@@ -149,7 +149,7 @@ export async function generateArtifactContent({
       return {
         title: graph.title,
         content: { ...base, diagramGraph: graph },
-        connectorProvider: "LUCIDCHART",
+        connectorProvider: "NATIVE",
       };
     }
     if (template.kind === "SPREADSHEET") {
@@ -170,9 +170,7 @@ export async function generateArtifactContent({
       return {
         title: "UX Design Options",
         content: { ...base, designVariants: variants, selectedDesignId: variants[0].id },
-        connectorProvider: "FIGMA",
-        connectorEmbedUrl: variants[0].figmaEmbedUrl,
-        connectorExternalUrl: variants[0].figmaExternalUrl,
+        connectorProvider: "NATIVE",
       };
     }
     const sections = demoSections(template, prompt);

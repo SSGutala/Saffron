@@ -78,6 +78,12 @@ export function ArtifactPanel({ projectId, initialArtifactId }: ArtifactPanelPro
     if (found) setActive(found);
   }, [initialArtifactId, artifacts]);
 
+  useEffect(() => {
+    if (!active?.id || !artifacts?.length) return;
+    const fresh = artifacts.find((a) => a.id === active.id);
+    if (fresh) setActive(fresh);
+  }, [artifacts, active?.id]);
+
   const remove = useMutation(
     trpc.artifacts.delete.mutationOptions({
       onSuccess: () => {

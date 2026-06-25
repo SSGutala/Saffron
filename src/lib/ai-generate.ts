@@ -75,9 +75,7 @@ Return ONLY valid JSON matching the kind:
     return {
       title: parsed.title || "UX Design Options",
       content,
-      connectorProvider: "FIGMA",
-      connectorEmbedUrl: v.figmaEmbedUrl,
-      connectorExternalUrl: v.figmaExternalUrl,
+      connectorProvider: "NATIVE",
     };
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import type { ArtifactContent, DesignVariant, FileUrls } from "@/types/artifacts";
+import type { ArtifactContent, DesignVariant } from "@/types/artifacts";
+import { isArtifactConnected } from "@/types/artifacts";
 import { ConnectorEmbed } from "./connector-embed";
 import { DiagramEditor } from "./diagram-editor";
 import { DesignPicker } from "./design-picker";
@@ -15,9 +16,8 @@ interface ArtifactViewerBodyProps {
   connectorProvider: string;
   connectorEmbedUrl?: string | null;
   connectorExternalUrl?: string | null;
-  useConnector: boolean;
-  onChange: (content: ArtifactContent) => void;
   editMode: boolean;
+  onChange: (content: ArtifactContent) => void;
 }
 
 export function ArtifactViewerBody({
@@ -26,22 +26,26 @@ export function ArtifactViewerBody({
   connectorProvider,
   connectorEmbedUrl,
   connectorExternalUrl,
-  useConnector,
-  onChange,
   editMode,
+  onChange,
 }: ArtifactViewerBodyProps) {
+  const connected = isArtifactConnected({
+    connectorProvider,
+    connectorEmbedUrl,
+  });
+
+  if (connected && connectorEmbedUrl) {
+    return (
+      <ConnectorEmbed
+        provider={connectorProvider as keyof typeof import("@/types/artifacts").CONNECTOR_META}
+        embedUrl={connectorEmbedUrl}
+        externalUrl={connectorExternalUrl}
+        title={content.meta?.title}
+      />
+    );
+  }
+
   if (kind === "DOCUMENT") {
-    if (useConnector && connectorProvider === "GOOGLE_DOCS") {
-      return (
-        <ConnectorEmbed
-          provider="GOOGLE_DOCS"
-          embedUrl={connectorEmbedUrl ?? "https://docs.google.com/document/d/demo/preview"}
-          externalUrl={connectorExternalUrl ?? "https://docs.google.com"}
-        >
-          <SectionDocView content={content} />
-        </ConnectorEmbed>
-      );
-    }
     if (editMode) {
       return (
         <WordEditor
@@ -55,31 +59,6 @@ export function ArtifactViewerBody({
 
   if (kind === "DIAGRAM") {
     const graph = content.diagramGraph ?? { nodes: [], edges: [] };
-    if (useConnector && connectorProvider === "LUCIDCHART") {
-      return (
-        <ConnectorEmbed
-          provider="LUCIDCHART"
-          embedUrl={
-            connectorEmbedUrl ??
-            "https://lucid.app/embeds/demo"
-          }
-          externalUrl={connectorExternalUrl ?? "https://lucidchart.com"}
-        >
-          <DiagramEditor
-            graph={graph}
-            onChange={(diagramGraph) => onChange({ ...content, diagramGraph })}
-          />
-        </ConnectorEmbed>
-      );
-    }
-    if (editMode) {
-      return (
-        <DiagramEditor
-          graph={graph}
-          onChange={(diagramGraph) => onChange({ ...content, diagramGraph })}
-        />
-      );
-    }
     return (
       <DiagramEditor
         graph={graph}
@@ -90,35 +69,6 @@ export function ArtifactViewerBody({
 
   if (kind === "SPREADSHEET") {
     const sheets = content.spreadsheetData?.sheets ?? [];
-    if (useConnector && connectorProvider === "GOOGLE_SHEETS") {
-      return (
-        <ConnectorEmbed
-          provider="GOOGLE_SHEETS"
-          embedUrl={
-            connectorEmbedUrl ??
-            "https://docs.google.com/spreadsheets/d/demo/preview"
-          }
-          externalUrl={connectorExternalUrl ?? "https://sheets.google.com"}
-        >
-          <SpreadsheetEditor
-            sheets={sheets}
-            onChange={(s) =>
-              onChange({ ...content, spreadsheetData: { sheets: s } })
-            }
-          />
-        </ConnectorEmbed>
-      );
-    }
-    if (editMode) {
-      return (
-        <SpreadsheetEditor
-          sheets={sheets}
-          onChange={(s) =>
-            onChange({ ...content, spreadsheetData: { sheets: s } })
-          }
-        />
-      );
-    }
     return (
       <SpreadsheetEditor
         sheets={sheets}
@@ -131,20 +81,6 @@ export function ArtifactViewerBody({
 
   if (kind === "PRESENTATION") {
     const slides = content.slides ?? [];
-    if (useConnector && connectorProvider === "GOOGLE_SLIDES") {
-      return (
-        <ConnectorEmbed
-          provider="GOOGLE_SLIDES"
-          embedUrl={
-            connectorEmbedUrl ??
-            "https://docs.google.com/presentation/d/demo/preview"
-          }
-          externalUrl={connectorExternalUrl ?? "https://slides.google.com"}
-        >
-          <SlideEditor slides={slides} onChange={(s) => onChange({ ...content, slides: s })} />
-        </ConnectorEmbed>
-      );
-    }
     if (editMode) {
       return (
         <SlideEditor slides={slides} onChange={(s) => onChange({ ...content, slides: s })} />
@@ -160,14 +96,10 @@ export function ArtifactViewerBody({
       <DesignPicker
         variants={content.designVariants ?? []}
         selectedId={content.selectedDesignId}
-        useConnector={useConnector}
-        connectorEmbedUrl={connectorEmbedUrl}
-        connectorExternalUrl={connectorExternalUrl}
-        onSelect={(id: string, variant: DesignVariant) =>
+        onSelect={(id) =>
           onChange({
             ...content,
             selectedDesignId: id,
-            designVariants: content.designVariants,
           })
         }
       />
@@ -184,10 +116,10 @@ export function downloadFileUrl(url: string, filename: string) {
   a.click();
 }
 
-export function parseFileUrls(raw?: string | null): FileUrls {
+export function parseFileUrls(raw?: string | null): import("@/types/artifacts").FileUrls {
   if (!raw) return {};
   try {
-    return JSON.parse(raw) as FileUrls;
+    return JSON.parse(raw) as import("@/types/artifacts").FileUrls;
   } catch {
     return {};
   }
