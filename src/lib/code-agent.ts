@@ -79,7 +79,8 @@ export async function runCodeAgent({
     await prisma.message.create({
       data: {
         projectId,
-        content: response,
+        content:
+          "Your app is ready — switch between Demo and Code above to preview it or edit the source. Changes in Code update the live preview.",
         role: "ASSISTANT",
         type: "RESULT",
         fragment: {

@@ -1,9 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpIcon, Loader2Icon } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -15,7 +14,6 @@ import { Form, FormField } from "@/components/ui/form";
 import type { InspirationImage } from "@/types/lifecycle";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
-import { Usage } from "./usage";
 
 interface MessageFormProps {
   projectId: string;
@@ -26,12 +24,9 @@ const formSchema = z.object({
 });
 
 const MessageForm = ({ projectId }: MessageFormProps) => {
-  const router = useRouter();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [images, setImages] = useState<InspirationImage[]>([]);
-
-  const { data: usage } = useQuery(trpc.usage.status.queryOptions());
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,10 +41,8 @@ const MessageForm = ({ projectId }: MessageFormProps) => {
         queryClient.invalidateQueries(
           trpc.messages.getMany.queryOptions({ projectId: data.projectId }),
         );
-        queryClient.invalidateQueries(trpc.usage.status.queryOptions());
       },
       onError: (error) => {
-        if (error.data?.code === "TOO_MANY_REQUESTS") router.push("/pricing");
         toast.error(error.message);
       },
     }),
@@ -69,15 +62,11 @@ const MessageForm = ({ projectId }: MessageFormProps) => {
 
   return (
     <Form {...form}>
-      {usage && (
-        <Usage points={usage.remainingPoints} msBeforeNext={usage.msBeforeNext} />
-      )}
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         className={cn(
           "relative border p-4 pt-1 rounded-xl bg-sidebar transition-all",
           isFocused && "shadow-xs",
-          usage && "rounded-t-none",
         )}
       >
         <FormField

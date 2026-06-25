@@ -4,6 +4,11 @@ import { z } from "zod";
 import { generateArtifactContent, refineArtifactContent } from "@/lib/artifacts/document-agent";
 import { generateExports } from "@/lib/artifacts/export";
 import { resolveTemplate } from "@/lib/ai-generate";
+import {
+  isLegacyArtifactContent,
+  normalizeBriefJson,
+} from "@/lib/lifecycle/brief-pipeline";
+import { createLifecycleArtifactsFromBrief } from "@/lib/lifecycle/create-artifacts";
 import { listDocumentTypes } from "@/lib/document-templates";
 import prisma from "@/lib/prisma";
 import type { ArtifactContent } from "@/types/artifacts";
@@ -31,13 +36,44 @@ export const artifactsRouter = createTRPCRouter({
   getMany: protectedProcedure
     .input(z.object({ projectId: z.string() }))
     .query(async ({ input, ctx }) => {
-      return prisma.artifact.findMany({
+      let artifacts = await prisma.artifact.findMany({
         where: {
           projectId: input.projectId,
           userId: ctx.auth.userId,
         },
         orderBy: [{ stageOrder: "asc" }, { updatedAt: "desc" }],
       });
+
+      const stageArtifacts = artifacts.filter((a) => a.stageKey);
+      if (stageArtifacts.length === 0 || stageArtifacts.some((a) => isLegacyArtifactContent(a.content))) {
+        const project = await prisma.project.findFirst({
+          where: { id: input.projectId, userId: ctx.auth.userId },
+        });
+        if (project?.briefJson) {
+          try {
+            const brief = normalizeBriefJson(
+              JSON.parse(project.briefJson) as Record<string, unknown>,
+            );
+            await createLifecycleArtifactsFromBrief({
+              projectId: input.projectId,
+              userId: ctx.auth.userId,
+              brief,
+              prompt: project.sourcePrompt ?? "Product brief",
+            });
+            artifacts = await prisma.artifact.findMany({
+              where: {
+                projectId: input.projectId,
+                userId: ctx.auth.userId,
+              },
+              orderBy: [{ stageOrder: "asc" }, { updatedAt: "desc" }],
+            });
+          } catch (err) {
+            console.error("[artifacts] lifecycle sync failed:", err);
+          }
+        }
+      }
+
+      return artifacts;
     }),
 
   getOne: protectedProcedure

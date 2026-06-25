@@ -5,9 +5,11 @@ import superjson from "superjson";
 
 export const createTRPCContext = cache(async () => {
   const session = await getSession();
+  // TEMP: auth bypass for testing — re-enable when login is required again
+  const userId = session?.userId ?? "test-user-local";
   return {
     auth: {
-      userId: session?.userId ?? null,
+      userId,
       plan: session?.plan ?? ("FREE" as const),
     },
   };
@@ -20,9 +22,10 @@ const t = initTRPC.context<Context>().create({
 });
 
 const isAuthed = t.middleware(({ next, ctx }) => {
-  if (!ctx.auth.userId) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
-  }
+  // TEMP: auth bypass for testing — re-enable when login is required again
+  // if (!ctx.auth.userId) {
+  //   throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
+  // }
 
   return next({
     ctx: {

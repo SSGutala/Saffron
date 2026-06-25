@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC = ["/", "/sign-in", "/sign-up", "/pricing"];
+const PUBLIC = ["/", "/sign-in", "/sign-up"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -12,13 +12,14 @@ export function middleware(req: NextRequest) {
 
   if (isPublic) return NextResponse.next();
 
-  const session = req.cookies.get("fts_session");
-  if (!session?.value) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/sign-in";
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
-  }
+  // TEMP: auth bypass for testing — re-enable when login is required again
+  // const session = req.cookies.get("fts_session");
+  // if (!session?.value) {
+  //   const url = req.nextUrl.clone();
+  //   url.pathname = "/sign-in";
+  //   url.searchParams.set("redirect", pathname);
+  //   return NextResponse.redirect(url);
+  // }
 
   return NextResponse.next();
 }

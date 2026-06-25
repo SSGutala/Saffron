@@ -6,7 +6,6 @@ import { generateExports } from "@/lib/artifacts/export";
 import { resolveTemplate } from "@/lib/ai-generate";
 import { runDesignGeneration } from "@/lib/lifecycle/orchestrator";
 import prisma from "@/lib/prisma";
-import { consumeCredits } from "@/lib/usage";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import type { InspirationImage } from "@/types/lifecycle";
@@ -80,15 +79,6 @@ export const messagesRouter = createTRPCRouter({
 
       if (!existingProject) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
-      }
-
-      try {
-        await consumeCredits();
-      } catch (error) {
-        if (error instanceof Error) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong." });
-        }
-        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "You ran out of credits" });
       }
 
       const mergedImages = mergeImages(

@@ -1,21 +1,13 @@
-import { generateExports } from "@/lib/artifacts/export";
 import prisma from "@/lib/prisma";
 import {
   generateEnterpriseBrief,
-  stageContentToArtifactContent,
+  normalizeBriefJson,
 } from "./brief-pipeline";
+import { createLifecycleArtifactsFromBrief } from "./create-artifacts";
 import { generateStylePreviews } from "./style-previews";
-import { LIFECYCLE_STAGES } from "@/types/lifecycle";
 import type { BriefJson, InspirationImage } from "@/types/lifecycle";
-import { ArtifactKind } from "@/generated/prisma";
 
-const KIND_MAP: Record<string, ArtifactKind> = {
-  DOCUMENT: "DOCUMENT",
-  DIAGRAM: "DIAGRAM",
-  DESIGN: "DESIGN",
-  SPREADSHEET: "SPREADSHEET",
-  PRESENTATION: "PRESENTATION",
-};
+export { createLifecycleArtifactsFromBrief };
 
 export async function runLifecycleBrief({
   projectId,
@@ -29,9 +21,9 @@ export async function runLifecycleBrief({
   images?: InspirationImage[];
 }) {
   try {
-    const brief = await generateEnterpriseBrief(prompt, images);
-    const appTitle =
-      (brief.appSpec as { appTitle?: string })?.appTitle ?? "Product";
+    const brief = normalizeBriefJson(await generateEnterpriseBrief(prompt, images));
+    const appSpec = (brief.app_spec ?? brief.appSpec) as { appTitle?: string } | undefined;
+    const appTitle = appSpec?.appTitle ?? "Product";
 
     await prisma.project.update({
       where: { id: projectId },
@@ -43,43 +35,15 @@ export async function runLifecycleBrief({
       },
     });
 
-    const artifactIds: Record<string, string> = {};
+    const { artifactIds } = await createLifecycleArtifactsFromBrief({
+      projectId,
+      userId,
+      brief,
+      prompt,
+    });
 
-    for (const stage of LIFECYCLE_STAGES) {
-      const data = brief[stage.key];
-      if (!data) continue;
-
-      const content = stageContentToArtifactContent(stage.key, data);
-      const parsed = JSON.parse(content);
-      const fileUrls = await generateExports(
-        parsed,
-        `${appTitle} — ${stage.label}`,
-        ["pdf", "docx", "md"],
-      );
-
-      const artifact = await prisma.artifact.create({
-        data: {
-          projectId,
-          userId,
-          kind: KIND_MAP[stage.kind],
-          artifactType: stage.key,
-          stageKey: stage.key,
-          stageOrder: stage.order,
-          title: `${appTitle} — ${stage.label}`,
-          content,
-          sourcePrompt: prompt,
-          connectorProvider:
-            stage.kind === "DIAGRAM"
-              ? "LUCIDCHART"
-              : stage.kind === "DESIGN"
-                ? "FIGMA"
-                : stage.kind === "SPREADSHEET"
-                  ? "GOOGLE_SHEETS"
-                  : "NATIVE",
-          fileUrls: JSON.stringify(fileUrls),
-        },
-      });
-      artifactIds[stage.key] = artifact.id;
+    if (Object.keys(artifactIds).length === 0) {
+      throw new Error("Brief had no lifecycle sections — could not create files");
     }
 
     await prisma.message.create({
@@ -88,7 +52,7 @@ export async function runLifecycleBrief({
         role: "ASSISTANT",
         type: "RESULT",
         content:
-          "I've mapped your idea into a full product lifecycle — 7 editable stages you can refine before we design and build the app.",
+          "Your product files are ready in the Files tab. Review and approve each document there — when they're all approved, ask me to generate design directions.",
         cardType: "lifecycle_brief",
         metadata: JSON.stringify({ brief, artifactIds, appTitle }),
       },
@@ -125,6 +89,15 @@ export async function runDesignGeneration({
     where: { id: projectId, userId },
   });
   if (!project?.sourcePrompt) throw new Error("Project not found");
+
+  await prisma.message.create({
+    data: {
+      projectId,
+      role: "ASSISTANT",
+      type: "RESULT",
+      content: "Generating design directions — I'll show them here when they're ready.",
+    },
+  });
 
   let images: InspirationImage[] = [];
   if (project.inspirationImages) {
@@ -171,7 +144,7 @@ export async function runDesignGeneration({
       projectId,
       role: "ASSISTANT",
       type: "RESULT",
-      content: "Pick a visual direction — I'll use it when building your full app.",
+      content: "Pick a design direction below — I'll build your full app once you choose one.",
       cardType: "style_choices",
       metadata: JSON.stringify({ styles }),
     },

@@ -1,12 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileTextIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckIcon, FileTextIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { Artifact } from "@/generated/prisma";
+import { LIFECYCLE_STAGES } from "@/types/lifecycle";
 import { useTRPC } from "@/trpc/client";
 import { AddDocumentModal } from "./add-document-modal";
 import { ArtifactViewer } from "./artifact-viewer";
@@ -32,6 +33,43 @@ export function ArtifactPanel({ projectId, initialArtifactId }: ArtifactPanelPro
 
   const { data: artifacts } = useQuery(
     trpc.artifacts.getMany.queryOptions({ projectId }),
+  );
+  const { data: lifecycle } = useQuery(
+    trpc.lifecycle.getStatus.queryOptions({ projectId }),
+  );
+
+  const stageArtifacts = useMemo(
+    () => artifacts?.filter((a) => a.stageKey) ?? [],
+    [artifacts],
+  );
+  const approvedStageCount =
+    stageArtifacts.filter((a) => a.status === "APPROVED").length;
+  const allStagesApproved =
+    stageArtifacts.length >= LIFECYCLE_STAGES.length &&
+    approvedStageCount >= LIFECYCLE_STAGES.length;
+
+  const approve = useMutation(
+    trpc.lifecycle.approveStage.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.artifacts.getMany.queryOptions({ projectId }));
+        queryClient.invalidateQueries(trpc.lifecycle.getStatus.queryOptions({ projectId }));
+      },
+    }),
+  );
+
+  const generateDesigns = useMutation(
+    trpc.lifecycle.generateDesigns.mutationOptions({
+      onMutate: () => {
+        toast.message("Generating design directions…");
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.messages.getMany.queryOptions({ projectId }));
+        queryClient.invalidateQueries(trpc.lifecycle.getStatus.queryOptions({ projectId }));
+        queryClient.invalidateQueries(trpc.projects.getOne.queryOptions({ id: projectId }));
+        toast.success("Design directions ready — pick one in chat");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
   );
 
   useEffect(() => {
@@ -65,11 +103,29 @@ export function ArtifactPanel({ projectId, initialArtifactId }: ArtifactPanelPro
           <FileTextIcon className="size-4" />
           Files & Documents
         </h2>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <PlusIcon className="size-3.5" />
-          Request file
-        </Button>
+        <div className="flex items-center gap-2">
+          {lifecycle?.lifecycleState === "BRIEF_READY" && stageArtifacts.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!allStagesApproved || generateDesigns.isPending}
+              onClick={() => generateDesigns.mutate({ projectId })}
+            >
+              {generateDesigns.isPending ? "Generating…" : "Generate designs"}
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <PlusIcon className="size-3.5" />
+            Request file
+          </Button>
+        </div>
       </div>
+      {stageArtifacts.length > 0 && lifecycle?.lifecycleState === "BRIEF_READY" && (
+        <p className="text-xs text-muted-foreground px-3 py-2 border-b shrink-0">
+          {approvedStageCount}/{LIFECYCLE_STAGES.length} documents approved
+          {!allStagesApproved && " — approve all to generate designs"}
+        </p>
+      )}
       <div className="flex-1 overflow-auto p-3 space-y-2">
         {!artifacts?.length && (
           <p className="text-sm text-muted-foreground text-center py-12">
@@ -90,8 +146,22 @@ export function ArtifactPanel({ projectId, initialArtifactId }: ArtifactPanelPro
               <span className="font-medium text-sm truncate">{a.title}</span>
               <p className="text-xs text-muted-foreground mt-0.5 capitalize">
                 {a.artifactType.replace(/_/g, " ")} · v{a.version}
+                {a.status === "APPROVED" && " · Approved"}
               </p>
             </button>
+            {a.stageKey && a.status !== "APPROVED" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => approve.mutate({ artifactId: a.id })}
+                disabled={approve.isPending}
+              >
+                Approve
+              </Button>
+            )}
+            {a.status === "APPROVED" && (
+              <CheckIcon className="size-4 text-primary shrink-0" />
+            )}
             <Button
               size="sm"
               variant="ghost"

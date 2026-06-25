@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { runLifecycleBrief } from "@/lib/lifecycle/orchestrator";
 import prisma from "@/lib/prisma";
-import { consumeCredits } from "@/lib/usage";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 
 export const projectsRouter = createTRPCRouter({
@@ -63,22 +62,6 @@ export const projectsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      try {
-        await consumeCredits();
-      } catch (error) {
-        if (error instanceof Error) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Something went wrong.",
-          });
-        } else {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "You ran out of credits",
-          });
-        }
-      }
-
       const createdProject = await prisma.project.create({
         data: {
           userId: ctx.auth.userId,

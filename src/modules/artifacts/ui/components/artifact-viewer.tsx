@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  CheckIcon,
   DownloadIcon,
   ExternalLinkIcon,
   PencilIcon,
@@ -86,6 +87,17 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
     }),
   );
 
+  const approve = useMutation(
+    trpc.lifecycle.approveStage.mutationOptions({
+      onSuccess: () => {
+        toast.success("Approved");
+        queryClient.invalidateQueries(
+          trpc.artifacts.getMany.queryOptions({ projectId: artifact.projectId }),
+        );
+      },
+    }),
+  );
+
   const handleSave = () => {
     save.mutate({
       id: artifact.id,
@@ -125,6 +137,17 @@ export function ArtifactViewer({ artifact, onClose }: ArtifactViewerProps) {
           <Button size="sm" onClick={handleSave} disabled={save.isPending}>
             <SaveIcon className="size-3.5" />
             Save
+          </Button>
+        )}
+        {artifact.stageKey && artifact.status !== "APPROVED" && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => approve.mutate({ artifactId: artifact.id })}
+            disabled={approve.isPending}
+          >
+            <CheckIcon className="size-3.5" />
+            Approve
           </Button>
         )}
         <Button

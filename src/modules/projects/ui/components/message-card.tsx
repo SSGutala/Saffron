@@ -1,12 +1,10 @@
 import { format } from "date-fns";
-import { ChevronRightIcon, Code2Icon } from "lucide-react";
 import Image from "next/image";
 
 import { Card } from "@/components/ui/card";
-import { LifecycleStagesCard } from "@/modules/lifecycle/ui/lifecycle-stages-card";
 import { StyleCarousel } from "@/modules/lifecycle/ui/style-carousel";
 import { Fragment, MessageRole, MessageType } from "@/generated/prisma";
-import type { BriefJson, StylePreview } from "@/types/lifecycle";
+import type { StylePreview } from "@/types/lifecycle";
 import { cn } from "@/lib/utils";
 
 interface UserMessageProps {
@@ -47,69 +45,30 @@ const UserMessage = ({ content, metadata }: UserMessageProps) => {
   );
 };
 
-interface FragmentCardProps {
-  fragment: Fragment;
-  isActiveFragment: boolean;
-  onFragmentClick: (fragment: Fragment) => void;
-}
-
-const FragmentCard = ({
-  fragment,
-  isActiveFragment,
-  onFragmentClick,
-}: FragmentCardProps) => {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "flex items-start text-start gap-2 border rounded-lg bg-muted w-fit p-3 hover:bg-secondary transition-colors",
-        isActiveFragment &&
-          "bg-primary text-primary-foreground border-primary hover:bg-primary",
-      )}
-      onClick={() => onFragmentClick(fragment)}
-    >
-      <Code2Icon className="size-4 mt-0.5" />
-      <div className="flex flex-col flex-1">
-        <span className="text-sm font-medium line-clamp-1">{fragment.title}</span>
-        <span className="text-sm">Preview</span>
-      </div>
-      <ChevronRightIcon className="size-4 mt-0.5" />
-    </button>
-  );
-};
-
 interface AssistantMessageProps {
   content: string;
-  fragment: Fragment | null;
   createdAt: Date;
-  isActiveFragment: boolean;
-  onFragmentClick: (fragment: Fragment) => void;
   type: MessageType;
   cardType?: string | null;
   metadata?: string | null;
   projectId: string;
-  onOpenArtifact?: (artifactId: string) => void;
+  onAppReady?: () => void;
 }
 
 const AssistantMessage = ({
   content,
   createdAt,
-  fragment,
-  isActiveFragment,
-  onFragmentClick,
   type,
   cardType,
   metadata,
   projectId,
-  onOpenArtifact,
+  onAppReady,
 }: AssistantMessageProps) => {
-  let lifecycleMeta: { brief?: BriefJson; artifactIds?: Record<string, string>; appTitle?: string } = {};
   let styles: StylePreview[] = [];
 
   if (metadata) {
     try {
       const parsed = JSON.parse(metadata);
-      if (cardType === "lifecycle_brief") lifecycleMeta = parsed;
       if (cardType === "style_choices") styles = parsed.styles ?? [];
     } catch {
       /* ignore */
@@ -134,25 +93,10 @@ const AssistantMessage = ({
       <div className="pl-8.5 flex flex-col gap-y-4">
         <span>{content}</span>
 
-        {cardType === "lifecycle_brief" && lifecycleMeta.brief && (
-          <LifecycleStagesCard
-            projectId={projectId}
-            brief={lifecycleMeta.brief}
-            artifactIds={lifecycleMeta.artifactIds ?? {}}
-            appTitle={lifecycleMeta.appTitle}
-            onOpenArtifact={onOpenArtifact}
-          />
-        )}
-
         {cardType === "style_choices" && styles.length > 0 && (
-          <StyleCarousel projectId={projectId} styles={styles} />
-        )}
-
-        {fragment && type === "RESULT" && (
-          <FragmentCard
-            fragment={fragment}
-            isActiveFragment={isActiveFragment}
-            onFragmentClick={onFragmentClick}
+          <StyleCarousel
+            projectId={projectId}
+            styles={styles}
           />
         )}
       </div>
@@ -172,6 +116,7 @@ export interface MessageCardProps {
   metadata?: string | null;
   projectId: string;
   onOpenArtifact?: (artifactId: string) => void;
+  onAppReady?: () => void;
 }
 
 const MessageCard = (props: MessageCardProps) => {

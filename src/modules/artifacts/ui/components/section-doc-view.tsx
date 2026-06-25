@@ -16,7 +16,7 @@ export function SectionDocView({ content }: { content: ArtifactContent }) {
             {content.meta?.version && <span>v{content.meta.version}</span>}
           </div>
         </header>
-        {content.nativeHtml ? (
+        {content.nativeHtml && !content.nativeHtml.includes("<pre>") ? (
           <div
             className="prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: content.nativeHtml }}

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { LogOutIcon, UserIcon } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -39,12 +38,7 @@ const UserControl = ({ showName }: UserControlProps) => {
         <DropdownMenuLabel className="font-normal">
           <p className="text-sm font-medium">{label}</p>
           <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-          <p className="text-xs text-primary mt-1 capitalize">{user.plan.toLowerCase()} plan</p>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/pricing">Upgrade</Link>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void signOut()}>
           <LogOutIcon className="size-4" />

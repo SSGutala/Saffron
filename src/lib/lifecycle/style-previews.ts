@@ -70,7 +70,7 @@ async function generateOnePreview(
     try {
       const textPart = `Product: ${prompt}\nDesign direction: ${preset.direction}\n${
         feedback ? `User feedback: ${feedback}\n` : ""
-      }App spec: ${JSON.stringify(brief?.appSpec ?? {}).slice(0, 2000)}`;
+      }App spec: ${JSON.stringify(brief?.app_spec ?? brief?.appSpec ?? {}).slice(0, 2000)}`;
 
       const code = await completeChat({
         system: `Generate ONE React preview file. export default function App. Import only from react. Tailwind only. Design: ${preset.direction}. Match inspiration images when provided. Output raw JS only.`,

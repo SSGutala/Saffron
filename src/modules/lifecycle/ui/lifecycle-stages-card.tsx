@@ -5,9 +5,9 @@ import { CheckIcon, ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { LIFECYCLE_STAGES } from "@/types/lifecycle";
+import { normalizeBriefJson } from "@/lib/lifecycle/brief-pipeline";
 import { useTRPC } from "@/trpc/client";
-import type { BriefJson } from "@/types/lifecycle";
+import { LIFECYCLE_STAGES, type BriefJson } from "@/types/lifecycle";
 
 interface LifecycleStagesCardProps {
   projectId: string;
@@ -24,6 +24,7 @@ export function LifecycleStagesCard({
   appTitle,
   onOpenArtifact,
 }: LifecycleStagesCardProps) {
+  const normalizedBrief = normalizeBriefJson(brief);
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [openStage, setOpenStage] = useState<string | null>("intake_summary");
@@ -72,7 +73,7 @@ export function LifecycleStagesCard({
           const artifactId = artifactIds[stage.key];
           const artifact = artifacts?.find((a) => a.id === artifactId);
           const isOpen = openStage === stage.key;
-          const data = brief[stage.key];
+          const data = normalizedBrief[stage.key];
 
           return (
             <div key={stage.key} className="border rounded-lg overflow-hidden">
@@ -92,7 +93,9 @@ export function LifecycleStagesCard({
               {isOpen && (
                 <div className="px-3 pb-3 space-y-2 border-t bg-muted/20">
                   <pre className="text-[10px] whitespace-pre-wrap max-h-32 overflow-auto text-muted-foreground">
-                    {JSON.stringify(data, null, 2).slice(0, 1200)}
+                    {data != null
+                      ? JSON.stringify(data, null, 2).slice(0, 1200)
+                      : "No data for this stage yet."}
                   </pre>
                   <div className="flex gap-2">
                     {artifactId && (

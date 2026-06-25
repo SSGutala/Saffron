@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeftIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -13,18 +13,20 @@ import { StylePreviewSandpack } from "./style-preview-sandpack";
 interface StyleCarouselProps {
   projectId: string;
   styles: StylePreview[];
-  onBuilt?: () => void;
 }
 
-export function StyleCarousel({ projectId, styles, onBuilt }: StyleCarouselProps) {
+export function StyleCarousel({ projectId, styles }: StyleCarouselProps) {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const [index, setIndex] = useState(0);
   const [opinion, setOpinion] = useState("");
   const [images, setImages] = useState<InspirationImage[]>([]);
 
   const build = useMutation(
     trpc.lifecycle.buildApp.mutationOptions({
-      onSuccess: () => onBuilt?.(),
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.projects.getOne.queryOptions({ id: projectId }));
+      },
     }),
   );
 

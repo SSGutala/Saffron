@@ -39,21 +39,21 @@ const ProjectForm = () => {
       onSuccess: (data) => {
         router.push(`/projects/${data.id}`);
         queryClient.invalidateQueries(trpc.projects.getMany.queryOptions());
-        queryClient.invalidateQueries(trpc.usage.status.queryOptions());
       },
       onError: (error) => {
-        if (error.data?.code === "UNAUTHORIZED") router.push("/sign-in");
-        if (error.data?.code === "TOO_MANY_REQUESTS") router.push("/pricing");
+        // TEMP: auth bypass for testing
+        // if (error.data?.code === "UNAUTHORIZED") router.push("/sign-in");
         toast.error(error.message);
       },
     }),
   );
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!user) {
-      router.push("/sign-up");
-      return;
-    }
+    // TEMP: auth bypass for testing — re-enable when login is required again
+    // if (!user) {
+    //   router.push("/sign-up");
+    //   return;
+    // }
     await createProject.mutateAsync({
       value: values.value,
       images: images.length ? images : undefined,

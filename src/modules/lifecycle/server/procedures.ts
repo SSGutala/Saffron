@@ -134,7 +134,7 @@ export const lifecycleRouter = createTRPCRouter({
           projectId: project.id,
           role: "ASSISTANT",
           type: "RESULT",
-          content: `Building your app with the "${chosen.label}" design direction…`,
+          content: `Building your app with the "${chosen.label}" design — Demo and Code tabs will appear when it's ready.`,
           cardType: "building",
         },
       });

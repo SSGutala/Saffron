@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { CodeIcon, CrownIcon, EyeIcon, FileTextIcon } from "lucide-react";
-import { useAuth } from "@/components/auth-provider";
-import { Suspense, useState } from "react";
+import { CodeIcon, EyeIcon, FileTextIcon } from "lucide-react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { FileExplorer } from "@/components/file-explorer";
-import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -15,24 +12,68 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserControl } from "@/components/user-control";
 import { Fragment } from "@/generated/prisma";
-import { FileCollection } from "@/types";
-import { FragmentWeb } from "../components/fragment-web";
+import { ArtifactPanel } from "@/modules/artifacts/ui/components/artifact-panel";
+import { useTRPC } from "@/trpc/client";
+import type { FileCollection } from "@/types";
+import {
+  AppSandpackCodeEditor,
+  AppSandpackPreview,
+  AppSandpackProvider,
+} from "../components/app-sandpack-shell";
 import { MessagesContainer } from "../components/messages-container";
 import { ProjectHeader } from "../components/project-header";
-import { ArtifactPanel } from "@/modules/artifacts/ui/components/artifact-panel";
 import { ErrorBoundary } from "react-error-boundary";
 
 interface ProjectViewProps {
   projectId: string;
 }
 
+function parseFragmentFiles(raw: string | null | undefined): FileCollection {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as FileCollection;
+  } catch {
+    return {};
+  }
+}
+
 const ProjectView = ({ projectId }: ProjectViewProps) => {
-  const { user } = useAuth();
-  const hasProAccess = user?.plan === "PRO";
+  const trpc = useTRPC();
+  const { data: project } = useQuery(
+    trpc.projects.getOne.queryOptions({ id: projectId }, {
+      refetchInterval: (query) => {
+        const state = query.state.data?.lifecycleState;
+        return state === "BUILDING" || state === "INTAKE" ? 3000 : false;
+      },
+    }),
+  );
 
   const [activeFragment, setActiveFragment] = useState<Fragment | null>(null);
-  const [tabState, setTabState] = useState<"preview" | "code" | "files">("preview");
+  const [tabState, setTabState] = useState<"preview" | "code" | "files">("files");
   const [focusArtifactId, setFocusArtifactId] = useState<string | null>(null);
+
+  const appFiles = useMemo(
+    () => parseFragmentFiles(activeFragment?.files),
+    [activeFragment?.files],
+  );
+
+  const showAppTabs =
+    Object.keys(appFiles).length > 0 &&
+    project?.lifecycleState === "APP_READY";
+
+  useEffect(() => {
+    if (showAppTabs) {
+      setTabState((current) =>
+        current === "files" ? "preview" : current,
+      );
+    } else {
+      setTabState("files");
+    }
+  }, [showAppTabs]);
+
+  const handleAppReady = useCallback(() => {
+    setTabState("preview");
+  }, []);
 
   return (
     <div className="h-screen">
@@ -53,6 +94,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                 projectId={projectId}
                 activeFragment={activeFragment}
                 setActiveFragment={setActiveFragment}
+                onAppReady={handleAppReady}
                 onOpenArtifact={(id) => {
                   setFocusArtifactId(id);
                   setTabState("files");
@@ -63,62 +105,62 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
         </ResizablePanel>
         <ResizableHandle className="hover:bg-primary transition-colors" />
         <ResizablePanel defaultSize={65} minSize={50}>
-          <Tabs
-            className="h-full gap-y-0"
-            defaultValue="preview"
-            value={tabState}
-            onValueChange={(newValue) =>
-              setTabState(newValue as "preview" | "code" | "files")
-            }
-          >
-            <div className="w-full flex items-center p-2 border-b gap-x-2">
-              <TabsList className="h-8 p-0 border rounded-md">
-                <TabsTrigger value="preview" className="rounded-md">
-                  <EyeIcon />
-                  <span>Demo</span>
-                </TabsTrigger>
-                <TabsTrigger value="files" className="rounded-md">
-                  <FileTextIcon />
-                  <span>Files</span>
-                </TabsTrigger>
-                <TabsTrigger value="code" className="rounded-md">
-                  <CodeIcon />
-                  <span>Code</span>
-                </TabsTrigger>
-              </TabsList>
-              <div className="ml-auto flex items-center gap-x-2">
-                {!hasProAccess && (
-                  <Button asChild size="sm" variant="tertiary">
-                    <Link href="/pricing">
-                      <CrownIcon />
-                      Upgrade
-                    </Link>
-                  </Button>
-                )}
-                <UserControl />
+          {showAppTabs ? (
+            <AppSandpackProvider files={appFiles}>
+              <Tabs
+                className="h-full gap-y-0"
+                value={tabState}
+                onValueChange={(newValue) =>
+                  setTabState(newValue as "preview" | "code" | "files")
+                }
+              >
+                <div className="w-full flex items-center p-2 border-b gap-x-2">
+                  <TabsList className="h-8 p-0 border rounded-md">
+                    <TabsTrigger value="preview" className="rounded-md">
+                      <EyeIcon />
+                      <span>Demo</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="code" className="rounded-md">
+                      <CodeIcon />
+                      <span>Code</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  <div className="ml-auto flex items-center gap-x-2">
+                    <UserControl />
+                  </div>
+                </div>
+                <TabsContent value="preview" className="min-h-0 h-[calc(100vh-3rem)]">
+                  <AppSandpackPreview />
+                </TabsContent>
+                <TabsContent value="code" className="min-h-0 h-[calc(100vh-3rem)]">
+                  <AppSandpackCodeEditor />
+                </TabsContent>
+              </Tabs>
+            </AppSandpackProvider>
+          ) : (
+            <Tabs
+              className="h-full gap-y-0"
+              value="files"
+            >
+              <div className="w-full flex items-center p-2 border-b gap-x-2">
+                <TabsList className="h-8 p-0 border rounded-md">
+                  <TabsTrigger value="files" className="rounded-md">
+                    <FileTextIcon />
+                    <span>Files</span>
+                  </TabsTrigger>
+                </TabsList>
+                <div className="ml-auto flex items-center gap-x-2">
+                  <UserControl />
+                </div>
               </div>
-            </div>
-            <TabsContent value="preview">
-              {!!activeFragment && <FragmentWeb data={activeFragment} />}
-            </TabsContent>
-            <TabsContent value="files" className="min-h-0 h-[calc(100vh-3rem)]">
-              <ArtifactPanel
-                projectId={projectId}
-                initialArtifactId={focusArtifactId}
-              />
-            </TabsContent>
-            <TabsContent value="code" className="min-h-0">
-              {!!activeFragment?.files && (
-                <FileExplorer
-                  files={
-                    typeof activeFragment.files === "string"
-                      ? (JSON.parse(activeFragment.files) as FileCollection)
-                      : (activeFragment.files as FileCollection)
-                  }
+              <TabsContent value="files" className="min-h-0 h-[calc(100vh-3rem)]">
+                <ArtifactPanel
+                  projectId={projectId}
+                  initialArtifactId={focusArtifactId}
                 />
-              )}
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+            </Tabs>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

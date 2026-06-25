@@ -12,6 +12,7 @@ interface MessagesContainerProps {
   activeFragment: Fragment | null;
   setActiveFragment: (activeFragment: Fragment | null) => void;
   onOpenArtifact?: (artifactId: string) => void;
+  onAppReady?: () => void;
 }
 
 const MessagesContainer = ({
@@ -19,6 +20,7 @@ const MessagesContainer = ({
   projectId,
   setActiveFragment,
   onOpenArtifact,
+  onAppReady,
 }: MessagesContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageIdRef = useRef<string | null>(null);
@@ -39,8 +41,9 @@ const MessagesContainer = ({
     ) {
       setActiveFragment(lastAssistantMessage?.fragment);
       lastAssistantMessageIdRef.current = lastAssistantMessage.id;
+      onAppReady?.();
     }
-  }, [messages, setActiveFragment]);
+  }, [messages, setActiveFragment, onAppReady]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView();
@@ -67,6 +70,7 @@ const MessagesContainer = ({
               metadata={message.metadata}
               projectId={projectId}
               onOpenArtifact={onOpenArtifact}
+              onAppReady={onAppReady}
             />
           ))}
 
