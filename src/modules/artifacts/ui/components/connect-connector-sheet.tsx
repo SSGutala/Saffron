@@ -51,7 +51,7 @@ export function ConnectConnectorSheet({
             Connect to {meta.label}
           </SheetTitle>
           <SheetDescription>
-            Saffron will export &ldquo;{artifactTitle}&rdquo; and hand it off to {meta.label}.
+            Aria will export &ldquo;{artifactTitle}&rdquo; and hand it off to {meta.label}.
             Paste the embed or share URL from your connected file — native editing will be
             replaced by the embedded {meta.label} view.
           </SheetDescription>

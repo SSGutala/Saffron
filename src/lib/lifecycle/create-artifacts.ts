@@ -1,4 +1,5 @@
 import { generateExports } from "@/lib/artifacts/export";
+import { logProductActivity } from "@/lib/aria/activity";
 import prisma from "@/lib/prisma";
 import { ArtifactKind } from "@/generated/prisma";
 import { LIFECYCLE_STAGES } from "@/types/lifecycle";
@@ -72,6 +73,14 @@ async function upsertStageArtifact({
       fileUrls,
     },
   });
+
+  await logProductActivity({
+    projectId,
+    eventType: "artifact_generated",
+    title: `${title} generated`,
+    metadata: { artifactId: artifact.id, stageKey: stage.key },
+  });
+
   return artifact.id;
 }
 

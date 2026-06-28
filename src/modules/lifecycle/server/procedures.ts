@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { logProductActivity } from "@/lib/aria/activity";
 import { runCodeAgent } from "@/lib/code-agent";
 import {
   runDesignGeneration,
@@ -156,9 +157,16 @@ export const lifecycleRouter = createTRPCRouter({
         where: { id: input.artifactId, userId: ctx.auth.userId },
       });
       if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
-      return prisma.artifact.update({
+      const updated = await prisma.artifact.update({
         where: { id: artifact.id },
         data: { status: "APPROVED" },
       });
+      await logProductActivity({
+        projectId: artifact.projectId,
+        eventType: "artifact_approved",
+        title: `${artifact.title} approved`,
+        metadata: { artifactId: artifact.id },
+      });
+      return updated;
     }),
 });

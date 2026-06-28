@@ -1,6 +1,6 @@
 "use client";
 
-import { CodeIcon, EyeIcon, FileTextIcon } from "lucide-react";
+import { CodeIcon, EyeIcon, LayoutGridIcon } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -12,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserControl } from "@/components/user-control";
 import { Fragment } from "@/generated/prisma";
-import { ArtifactPanel } from "@/modules/artifacts/ui/components/artifact-panel";
+import { ProductWorkspace } from "@/modules/workspace/ui/components/product-workspace";
 import { useTRPC } from "@/trpc/client";
 import type { FileCollection } from "@/types";
 import {
@@ -49,7 +49,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
   );
 
   const [activeFragment, setActiveFragment] = useState<Fragment | null>(null);
-  const [tabState, setTabState] = useState<"preview" | "code" | "files">("files");
+  const [tabState, setTabState] = useState<"preview" | "code" | "workspace">("workspace");
   const [focusArtifactId, setFocusArtifactId] = useState<string | null>(null);
 
   const appFiles = useMemo(
@@ -64,10 +64,10 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
   useEffect(() => {
     if (showAppTabs) {
       setTabState((current) =>
-        current === "files" ? "preview" : current,
+        current === "workspace" ? "preview" : current,
       );
     } else {
-      setTabState("files");
+      setTabState("workspace");
     }
   }, [showAppTabs]);
 
@@ -97,7 +97,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                 onAppReady={handleAppReady}
                 onOpenArtifact={(id) => {
                   setFocusArtifactId(id);
-                  setTabState("files");
+                  setTabState("workspace");
                 }}
               />
             </Suspense>
@@ -111,11 +111,15 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                 className="h-full gap-y-0"
                 value={tabState}
                 onValueChange={(newValue) =>
-                  setTabState(newValue as "preview" | "code" | "files")
+                  setTabState(newValue as "preview" | "code" | "workspace")
                 }
               >
                 <div className="w-full flex items-center p-2 border-b gap-x-2">
                   <TabsList className="h-8 p-0 border rounded-md">
+                    <TabsTrigger value="workspace" className="rounded-md">
+                      <LayoutGridIcon />
+                      <span>Workspace</span>
+                    </TabsTrigger>
                     <TabsTrigger value="preview" className="rounded-md">
                       <EyeIcon />
                       <span>Demo</span>
@@ -129,6 +133,12 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
                     <UserControl />
                   </div>
                 </div>
+                <TabsContent value="workspace" className="min-h-0 h-[calc(100vh-3rem)]">
+                  <ProductWorkspace
+                    projectId={projectId}
+                    initialArtifactId={focusArtifactId}
+                  />
+                </TabsContent>
                 <TabsContent value="preview" className="min-h-0 h-[calc(100vh-3rem)]">
                   <AppSandpackPreview />
                 </TabsContent>
@@ -140,21 +150,21 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
           ) : (
             <Tabs
               className="h-full gap-y-0"
-              value="files"
+              value="workspace"
             >
               <div className="w-full flex items-center p-2 border-b gap-x-2">
                 <TabsList className="h-8 p-0 border rounded-md">
-                  <TabsTrigger value="files" className="rounded-md">
-                    <FileTextIcon />
-                    <span>Files</span>
+                  <TabsTrigger value="workspace" className="rounded-md">
+                    <LayoutGridIcon />
+                    <span>Workspace</span>
                   </TabsTrigger>
                 </TabsList>
                 <div className="ml-auto flex items-center gap-x-2">
                   <UserControl />
                 </div>
               </div>
-              <TabsContent value="files" className="min-h-0 h-[calc(100vh-3rem)]">
-                <ArtifactPanel
+              <TabsContent value="workspace" className="min-h-0 h-[calc(100vh-3rem)]">
+                <ProductWorkspace
                   projectId={projectId}
                   initialArtifactId={focusArtifactId}
                 />

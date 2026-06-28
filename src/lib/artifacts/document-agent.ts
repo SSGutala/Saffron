@@ -136,7 +136,7 @@ export async function generateArtifactContent({
     depthMode: "enterprise",
     meta: {
       title: template.label,
-      owner: "Saffron User",
+      owner: "Aria User",
       date: new Date().toISOString().slice(0, 10),
       project: projectName,
       version: "1.0",

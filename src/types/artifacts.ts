@@ -74,7 +74,7 @@ export type FileUrls = Partial<
 >;
 
 export const CONNECTOR_META = {
-  NATIVE: { label: "Saffron Editor", icon: "✏️" },
+  NATIVE: { label: "Aria Editor", icon: "✏️" },
   FIGMA: { label: "Figma", icon: "🎨", expandLabel: "Open in Figma" },
   GOOGLE_DOCS: { label: "Google Docs", icon: "📝", expandLabel: "Open in Google Docs" },
   GOOGLE_SHEETS: { label: "Google Sheets", icon: "📊", expandLabel: "Open in Google Sheets" },

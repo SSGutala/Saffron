@@ -199,7 +199,7 @@ function sectionsToHtml(sections: SectionDoc[]) {
 function docMeta(label: string, appTitle: string): ArtifactContent["meta"] {
   return {
     title: label,
-    owner: "Saffron",
+    owner: "Aria",
     date: new Date().toISOString().slice(0, 10),
     project: appTitle,
     version: "1.0",

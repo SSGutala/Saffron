@@ -34,8 +34,10 @@ enum LifecycleState {
 model Project {
   id                 String          @id @default(uuid())
   name               String
+  displayName        String?
   userId             String
   lifecycleState     LifecycleState  @default(INTAKE)
+  currentPhase       String?
   briefJson          String?
   stylePreviewsJson  String?
   chosenStyleJson    String?
@@ -45,6 +47,8 @@ model Project {
   updatedAt          DateTime        @updatedAt
   messages           Message[]
   artifacts          Artifact[]
+  connectors         ProjectConnector[]
+  activityEvents     ActivityEvent[]
 }
 
 enum ArtifactKind {
@@ -71,25 +75,58 @@ enum ConnectorProvider {
 }
 
 model Artifact {
-  id                  String            @id @default(uuid())
-  projectId           String
-  project             Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  userId              String
-  kind                ArtifactKind
-  artifactType        String
-  stageKey            String?
-  stageOrder          Int?
-  title               String
-  content             String
-  version             Int               @default(1)
-  status              ArtifactStatus    @default(DRAFT)
-  sourcePrompt        String?
-  connectorProvider   ConnectorProvider @default(NATIVE)
-  connectorEmbedUrl   String?
+  id                   String            @id @default(uuid())
+  projectId            String
+  project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId               String
+  kind                 ArtifactKind
+  artifactType         String
+  stageKey             String?
+  stageOrder           Int?
+  title                String
+  description          String?
+  content              String            @default("{}")
+  version              Int               @default(1)
+  status               ArtifactStatus    @default(DRAFT)
+  sourcePrompt         String?
+  sourceType           String            @default("native")
+  syncStatus           String            @default("native")
+  owner                String?
+  dependenciesJson     String?
+  relatedArtifactsJson String?
+  externalUrl          String?
+  previewAvailable     Boolean           @default(true)
+  lastSyncedAt         DateTime?
+  connectorProvider    ConnectorProvider @default(NATIVE)
+  connectorEmbedUrl    String?
   connectorExternalUrl String?
-  fileUrls            String?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  fileUrls             String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+}
+
+model ProjectConnector {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  connectorId String
+  status      String   @default("mock")
+  configJson  String?
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projectId, connectorId])
+}
+
+model ActivityEvent {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  eventType   String
+  title       String
+  metadataJson String?
+  createdAt   DateTime @default(now())
 }
 
 enum MessageRole {

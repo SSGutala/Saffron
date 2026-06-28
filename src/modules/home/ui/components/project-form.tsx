@@ -83,7 +83,7 @@ const ProjectForm = () => {
                 onChange={field.onChange}
                 images={images}
                 onImagesChange={setImages}
-                placeholder="Ask Saffron to create a web app that..."
+                placeholder="Ask Aria to build a product, feature, or workflow…"
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 disabled={isPending}

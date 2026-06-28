@@ -22,8 +22,8 @@ const Navbar = () => {
     >
       <div className="max-w-6xl mx-auto w-full flex justify-between items-center">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="Saffron" width={28} height={28} />
-          <span className="font-semibold text-lg tracking-tight">Saffron</span>
+          <Image src="/logo.svg" alt="Aria" width={28} height={28} />
+          <span className="font-semibold text-lg tracking-tight">Aria</span>
         </Link>
         {!loading && !user && (
           <div className="flex gap-2">

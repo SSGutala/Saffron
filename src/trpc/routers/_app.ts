@@ -2,6 +2,7 @@ import { artifactsRouter } from "@/modules/artifacts/server/procedures";
 import { lifecycleRouter } from "@/modules/lifecycle/server/procedures";
 import { messagesRouter } from "@/modules/messages/server/procedures";
 import { projectsRouter } from "@/modules/projects/server/procedures";
+import { workspaceRouter } from "@/modules/workspace/server/procedures";
 import { createTRPCRouter } from "../init";
 
 export const appRouter = createTRPCRouter({
@@ -9,6 +10,7 @@ export const appRouter = createTRPCRouter({
   lifecycle: lifecycleRouter,
   messages: messagesRouter,
   projects: projectsRouter,
+  workspace: workspaceRouter,
 });
 
 // export type definition of API

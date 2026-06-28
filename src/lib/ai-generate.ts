@@ -27,7 +27,7 @@ export async function complete(
   connectorEmbedUrl?: string;
   connectorExternalUrl?: string;
 }> {
-  const system = `You generate enterprise artifacts as JSON for Saffron.
+  const system = `You generate enterprise artifacts as JSON for Aria.
 Template: ${template.label} (${template.kind})
 Return ONLY valid JSON matching the kind:
 - DOCUMENT: { title, sections: [{ key, title, body, bullets?, table? }] }

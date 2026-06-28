@@ -31,7 +31,7 @@ const ProjectsList = () => {
           >
             <Link href={`/projects/${project.id}`}>
               <div className="flex items-center gap-x-4">
-                <Image src="/logo.svg" alt="Saffron" width={32} height={32} />
+                <Image src="/logo.svg" alt="Aria" width={32} height={32} />
                 <div className="flex flex-col min-w-0">
                   <h3 className="truncate font-medium">{project.name}</h3>
                   <p className="text-sm text-muted-foreground">

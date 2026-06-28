@@ -1,5 +1,5 @@
 export const siteConfig = {
-  name: "Saffron",
+  name: "Aria",
   description:
-    "AI App Builder — End-to-end product lifecycle from brief to designs to full-stack apps.",
+    "AI Product Delivery OS — Turn product ideas into living workspaces with connected artifacts, AI PM recommendations, and delivery actions.",
 };

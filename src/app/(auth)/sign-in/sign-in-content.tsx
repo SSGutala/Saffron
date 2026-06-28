@@ -57,9 +57,9 @@ export default function SignInContent() {
   return (
     <Card className="w-full max-w-md p-8 space-y-6 border shadow-sm">
       <div className="flex flex-col items-center gap-2">
-        <Image src="/logo.svg" alt="Saffron" width={40} height={40} />
+        <Image src="/logo.svg" alt="Aria" width={40} height={40} />
         <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">Log in to your Saffron account</p>
+        <p className="text-sm text-muted-foreground">Log in to your Aria account</p>
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

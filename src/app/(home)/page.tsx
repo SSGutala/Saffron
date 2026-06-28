@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 
 import { ProjectForm } from "@/modules/home/ui/components/project-form";
-import { HomeProjects } from "@/modules/home/ui/components/home-projects";
+import { HomeOperatingSystem } from "@/modules/workspace/ui/components/home-operating-system";
 import { PROJECT_TEMPLATES } from "@/constants";
 import { Button } from "@/components/ui/button";
 
@@ -11,57 +11,54 @@ export default function HomePage() {
   return (
     <div className="flex flex-col max-w-6xl mx-auto w-full">
       {/* Hero */}
-      <section className="space-y-8 py-[14vh] 2xl:py-40 text-center">
+      <section className="space-y-8 py-[12vh] 2xl:py-32 text-center">
         <div className="flex flex-col items-center gap-4">
           <Image
             src="/logo.svg"
-            alt="Saffron"
+            alt="Aria"
             width={56}
             height={56}
             className="hidden md:block"
           />
           <p className="text-sm font-medium text-primary tracking-wide uppercase">
-            AI App Builder
+            AI Product Delivery OS
           </p>
         </div>
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight">
-          Build something{" "}
-          <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
-            Saffron
-          </span>
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
+          What are we building today?
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Create apps and websites by chatting with AI
+          Aria is your AI Product Manager — turn ideas into living products with connected artifacts across your delivery stack.
         </p>
 
         <div className="max-w-3xl mx-auto w-full pt-2">
           <ProjectForm />
         </div>
-
-        <HomeProjects />
       </section>
+
+      <HomeOperatingSystem />
 
       {/* How it works */}
       <section className="py-20 border-t border-border/50">
         <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
-          Meet Saffron
+          How Aria delivers
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
               step: "01",
               title: "Start with an idea",
-              desc: "Describe the app or website you want to create, or drop in screenshots and docs",
+              desc: "Describe a product, feature, workflow, or internal tool. Aria creates a managed product workspace.",
             },
             {
               step: "02",
-              title: "Watch it come to life",
-              desc: "See your vision transform into a working prototype in real-time as AI builds it for you",
+              title: "Living artifacts",
+              desc: "PRDs, workflow maps, data models, and backlogs — connected artifacts that stay in sync across your tools.",
             },
             {
               step: "03",
-              title: "Refine and ship",
-              desc: "Iterate on your creation with simple feedback and deploy it to the world with one click",
+              title: "Deliver with confidence",
+              desc: "AI PM recommendations guide approvals, designs, automations, and releases through the full lifecycle.",
             },
           ].map((item) => (
             <div
@@ -81,7 +78,7 @@ export default function HomePage() {
       {/* Templates */}
       <section className="py-20 border-t border-border/50">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold">Discover templates</h2>
+          <h2 className="text-2xl md:text-3xl font-bold">Product starters</h2>
           <Button variant="ghost" size="sm" className="text-muted-foreground">
             View all <ArrowRightIcon className="ml-1 size-4" />
           </Button>
@@ -103,45 +100,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-20 border-t border-border/50 text-center">
-        <h2 className="text-2xl md:text-3xl font-bold mb-4">
-          Saffron in numbers
-        </h2>
-        <p className="text-muted-foreground mb-12">
-          Millions of builders are already turning ideas into reality
-        </p>
-        <div className="grid sm:grid-cols-3 gap-8">
-          {[
-            { value: "2M+", label: "projects built on Saffron" },
-            { value: "100K+", label: "new projects built per week" },
-            { value: "50M+", label: "visits per month to Saffron-built projects" },
-          ].map((stat) => (
-            <div key={stat.label} className="space-y-2">
-              <p className="text-4xl md:text-5xl font-bold text-primary">
-                {stat.value}
-              </p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="py-20 border-t border-border/50 text-center space-y-6">
-        <h2 className="text-3xl md:text-4xl font-bold">Ready to build?</h2>
+        <h2 className="text-3xl md:text-4xl font-bold">Ready to deliver?</h2>
         <p className="text-muted-foreground text-lg">
-          Idea to app in seconds — build apps by chatting with an AI.
+          Idea to product workspace in minutes — managed by your AI Product Manager.
         </p>
         <Button
           asChild
           size="lg"
           className="rounded-full px-8 bg-primary hover:bg-primary/90"
         >
-          <Link href="#top">Start for free</Link>
+          <Link href="#top">Start a product</Link>
         </Button>
       </section>
-
     </div>
   );
 }
