@@ -34,6 +34,7 @@ export function HomeOperatingSystem() {
   }
 
   const continueProduct = data?.continueProduct;
+  const connectedToolsCount = data?.stats?.connectedToolsCount ?? 0;
 
   return (
     <div className="max-w-4xl mx-auto w-full space-y-12 pb-16">
@@ -118,21 +119,15 @@ export function HomeOperatingSystem() {
         </section>
       )}
 
-      {data?.connectedTools && (
+      {connectedToolsCount > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Connected tools
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {data.connectedTools.map((c) => (
-              <span
-                key={c.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/20 px-3 py-1 text-xs text-muted-foreground"
-              >
-                {c.icon} {c.name}
-              </span>
-            ))}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {connectedToolsCount} tool
+            {connectedToolsCount !== 1 ? "s" : ""} connected across your products
+          </p>
         </section>
       )}
 

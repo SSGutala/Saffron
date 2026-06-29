@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
 import { TRPCReactProvider } from "@/trpc/client";
 import "./globals.css";
+import "@/styles/aria.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,7 +45,7 @@ export default function RootLayout({
             <ThemeProvider
               enableSystem
               attribute="class"
-              defaultTheme="dark"
+              defaultTheme="light"
               disableTransitionOnChange
             >
               <Toaster />

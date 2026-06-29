@@ -1,0 +1,68 @@
+/** Aria design tokens — match reference mockup exactly */
+:root {
+  --aria-sidebar: #12141d;
+  --aria-sidebar-hover: #1e2130;
+  --aria-sidebar-active: #6366f1;
+  --aria-bg: #f8f9fb;
+  --aria-surface: #ffffff;
+  --aria-primary: #6366f1;
+  --aria-primary-hover: #5558e8;
+  --aria-text: #1e293b;
+  --aria-text-secondary: #64748b;
+  --aria-text-muted: #94a3b8;
+  --aria-border: #e2e8f0;
+  --aria-success: #10b981;
+  --aria-success-bg: #ecfdf5;
+  --aria-warning: #f59e0b;
+  --aria-warning-bg: #fffbeb;
+  --aria-danger: #ef4444;
+  --aria-danger-bg: #fef2f2;
+  --aria-info-bg: #eef2ff;
+}
+
+.aria-app {
+  background-color: var(--aria-bg);
+  color: var(--aria-text);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.aria-card {
+  background: var(--aria-surface);
+  border: 1px solid var(--aria-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.aria-btn-primary {
+  background: var(--aria-primary);
+  color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.aria-btn-primary:hover {
+  background: var(--aria-primary-hover);
+}
+
+.aria-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #94a3b8;
+  transition: all 0.15s;
+}
+.aria-sidebar-link:hover {
+  background: var(--aria-sidebar-hover);
+  color: #e2e8f0;
+}
+.aria-sidebar-link.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+
+.aria-sidebar-link.active .aria-nav-icon {
+  color: var(--aria-primary);
+}

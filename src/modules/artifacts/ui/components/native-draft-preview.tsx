@@ -1,7 +1,6 @@
 "use client";
 
 import type { ArtifactContent } from "@/types/artifacts";
-import { Badge } from "@/components/ui/badge";
 
 interface NativeDraftPreviewProps {
   kind: string;
@@ -11,54 +10,70 @@ interface NativeDraftPreviewProps {
 /** Structured read-only preview — NOT a fake editor. Aria owns the draft; connectors own editing. */
 export function NativeDraftPreview({ kind, content }: NativeDraftPreviewProps) {
   return (
-    <div className="h-full overflow-auto bg-muted/30">
+    <div className="h-full overflow-auto bg-[#f8f9fb]">
       <div className="max-w-3xl mx-auto p-8 space-y-8">
-        <header className="space-y-3 border-b border-border/60 pb-6">
-          <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-            Native Draft
-          </Badge>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {content.meta?.title || content.label || "Untitled artifact"}
-          </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Aria generated this structured draft. Connect to an external source to edit in the
-            native application — Google Docs, Lucidchart, Figma, Jira, and others.
-          </p>
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-            {content.meta?.owner && <span>Owner: {content.meta.owner}</span>}
-            {content.meta?.date && <span>{content.meta.date}</span>}
-            {content.meta?.version && <span>v{content.meta.version}</span>}
-          </div>
-        </header>
+        {kind !== "DOCUMENT" && (
+          <header className="space-y-3 border-b border-[#e2e8f0] pb-6">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-[#eef2ff] text-[#6366f1] border border-[#c7d2fe]">
+              Native Draft
+            </span>
+            <h1 className="text-2xl font-semibold tracking-tight text-[#1e293b]">
+              {content.meta?.title || content.label || "Untitled artifact"}
+            </h1>
+          </header>
+        )}
+
+        {kind === "DOCUMENT" && (
+          <article className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm px-12 py-14 text-[#1e293b]">
+            <header className="border-b border-[#e2e8f0] pb-6 mb-8">
+              <h1 className="text-2xl font-bold">
+                {content.meta?.title || content.label || "Product Requirements Document"}
+              </h1>
+              <p className="text-sm text-[#64748b] mt-2">
+                {content.meta?.project ?? "Asset Request System"}
+              </p>
+            </header>
+            {(content.sections ?? []).map((s, i) => (
+              <section key={s.key} className="mb-8">
+                <h2 className="text-lg font-semibold text-[#1e293b] mb-3">
+                  {i + 1}. {s.title}
+                </h2>
+                {s.body && (
+                  <p className="text-[15px] leading-relaxed text-[#475569] whitespace-pre-wrap">
+                    {s.body}
+                  </p>
+                )}
+                {s.bullets?.length ? (
+                  <ul className="list-disc pl-5 text-[15px] space-y-1.5 text-[#475569] mt-2">
+                    {s.bullets.map((b) => (
+                      <li key={b}>{b}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ))}
+          </article>
+        )}
 
         {kind === "DIAGRAM" && content.diagramGraph && (
           <section className="space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Workflow Structure
-            </h2>
-            <div className="grid gap-2">
-              {(content.diagramGraph.nodes ?? []).map((node) => (
-                <div
-                  key={node.id}
-                  className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm"
-                >
-                  {node.data.label}
-                  {node.data.lane && (
-                    <span className="ml-2 text-xs text-muted-foreground">({node.data.lane})</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {(content.diagramGraph.edges ?? []).length > 0 && (
-              <div className="text-xs text-muted-foreground space-y-1 pt-2">
-                {(content.diagramGraph.edges ?? []).map((e) => (
-                  <p key={e.id}>
-                    {e.source} → {e.target}
-                    {e.label ? ` (${e.label})` : ""}
-                  </p>
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-8 min-h-[400px] relative overflow-auto">
+              <div className="flex flex-col items-center gap-4 max-w-md mx-auto py-8">
+                {(content.diagramGraph.nodes ?? []).map((node, i) => (
+                  <div key={node.id} className="flex flex-col items-center w-full">
+                    <div className="w-full max-w-xs rounded-lg border-2 border-[#6366f1]/30 bg-[#eef2ff] px-6 py-3 text-center text-sm font-medium text-[#1e293b] shadow-sm">
+                      {node.data.label}
+                    </div>
+                    {i < (content.diagramGraph?.nodes?.length ?? 0) - 1 && (
+                      <div className="flex flex-col items-center py-2 text-[#94a3b8]">
+                        <div className="w-px h-6 bg-[#cbd5e1]" />
+                        <span className="text-lg">↓</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
           </section>
         )}
 
@@ -140,7 +155,7 @@ export function NativeDraftPreview({ kind, content }: NativeDraftPreviewProps) {
             </section>
           ))}
 
-        {(kind === "DOCUMENT" || !["DIAGRAM", "SPREADSHEET", "PRESENTATION", "DESIGN"].includes(kind)) &&
+        {(kind === "DOCUMENT" ? false : !["DIAGRAM", "SPREADSHEET", "PRESENTATION", "DESIGN"].includes(kind)) &&
           (content.sections ?? []).map((s) => (
             <section key={s.key} className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">

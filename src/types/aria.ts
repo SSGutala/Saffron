@@ -134,6 +134,7 @@ export interface AriaArtifactView {
   hasDownstreamImpact: boolean;
   impactedArtifacts: string[];
   summary?: string | null;
+  productName?: string;
   stageKey?: string | null;
   createdAt: string;
   updatedAt: string;

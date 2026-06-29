@@ -122,15 +122,38 @@ export const workspaceRouter = createTRPCRouter({
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 8);
 
+    const connectedCount = projects.reduce(
+      (sum, p) =>
+        sum +
+        p.connectors.filter((c) => c.status === "connected" || c.status === "mock").length,
+      0,
+    );
+
     return {
       briefing: homeBriefing,
       products,
       continueProduct: products[0] ?? null,
       recentActivity,
-      connectedTools: ARIA_CONNECTORS.slice(0, 8).map((c) => ({
-        ...c,
-        status: "disconnected" as const,
-      })),
+      stats: {
+        productCount: products.length,
+        artifactCount: products.reduce((s, p) => s + p.artifactTotal, 0),
+        approvedCount: products.reduce((s, p) => s + p.artifactApproved, 0),
+        approvalsWaiting: products.reduce((s, p) => s + p.pulse.approvalsWaiting, 0),
+        riskCount: products.filter((p) => p.pulse.riskLevel === "high").length,
+        healthPercent:
+          products.length > 0
+            ? Math.round(
+                products.reduce((s, p) => {
+                  const pct =
+                    p.artifactTotal > 0
+                      ? (p.artifactApproved / p.artifactTotal) * 100
+                      : 0;
+                  return s + pct;
+                }, 0) / products.length,
+              )
+            : 0,
+        connectedToolsCount: connectedCount,
+      },
     };
   }),
 
@@ -191,7 +214,7 @@ export const workspaceRouter = createTRPCRouter({
       });
     }),
 
-  mockConnect: protectedProcedure
+  connectConnector: protectedProcedure
     .input(z.object({ projectId: z.string(), connectorId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const project = await prisma.project.findFirst({
@@ -212,12 +235,12 @@ export const workspaceRouter = createTRPCRouter({
         create: {
           projectId: input.projectId,
           connectorId: input.connectorId,
-          status: "mock",
+          status: "connected",
           lastSyncAt: new Date(),
-          configJson: JSON.stringify({ mock: true }),
+          configJson: JSON.stringify({ connectedAt: new Date().toISOString() }),
         },
         update: {
-          status: "mock",
+          status: "connected",
           lastSyncAt: new Date(),
         },
       });
@@ -225,14 +248,137 @@ export const workspaceRouter = createTRPCRouter({
       await prisma.activityEvent.create({
         data: {
           projectId: input.projectId,
-          eventType: "connector_mock_connected",
-          title: `Connected ${def.name} (mock)`,
+          eventType: "connector_connected",
+          title: `Connected ${def.name}`,
           metadataJson: JSON.stringify({ connectorId: def.id }),
         },
       });
 
       return connector;
     }),
+
+  mockConnect: protectedProcedure
+    .input(z.object({ projectId: z.string(), connectorId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.auth.userId },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+      const def = ARIA_CONNECTORS.find((c) => c.id === input.connectorId);
+      if (!def) throw new TRPCError({ code: "BAD_REQUEST" });
+      return prisma.projectConnector.upsert({
+        where: {
+          projectId_connectorId: {
+            projectId: input.projectId,
+            connectorId: input.connectorId,
+          },
+        },
+        create: {
+          projectId: input.projectId,
+          connectorId: input.connectorId,
+          status: "connected",
+          lastSyncAt: new Date(),
+        },
+        update: { status: "connected", lastSyncAt: new Date() },
+      });
+    }),
+
+  getGlobalArtifacts: protectedProcedure
+    .input(
+      z.object({
+        filter: z
+          .enum([
+            "all",
+            "artifacts",
+            "backlog",
+            "workflows",
+            "automations",
+            "designs",
+            "tests",
+            "releases",
+          ])
+          .default("all"),
+        projectId: z.string().optional(),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      const projects = await prisma.project.findMany({
+        where: {
+          userId: ctx.auth.userId,
+          ...(input.projectId ? { id: input.projectId } : {}),
+        },
+        include: { artifacts: true },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      const { filterArtifactsGlobal } = await import("@/lib/aria/global-filters");
+
+      const items = projects.flatMap((p) => {
+        const displayName = resolveDisplayName(p);
+        return p.artifacts.map((a) => ({
+          ...mapArtifactToView(a, p.artifacts),
+          productName: displayName,
+        }));
+      });
+
+      return filterArtifactsGlobal(items, input.filter);
+    }),
+
+  getGlobalActivity: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(100).default(50) }))
+    .query(async ({ input, ctx }) => {
+      const events = await prisma.activityEvent.findMany({
+        where: { project: { userId: ctx.auth.userId } },
+        include: { project: true },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+      });
+
+      return events.map((e) => ({
+        id: e.id,
+        projectId: e.projectId,
+        productName: resolveDisplayName(e.project),
+        eventType: e.eventType,
+        title: e.title,
+        createdAt: e.createdAt.toISOString(),
+      }));
+    }),
+
+  getGlobalIntegrations: protectedProcedure.query(async ({ ctx }) => {
+    const projects = await prisma.project.findMany({
+      where: { userId: ctx.auth.userId },
+      include: { connectors: true, artifacts: true },
+    });
+
+    const allConnectors = projects.flatMap((p) => p.connectors);
+    const allArtifacts = projects.flatMap((p) => p.artifacts);
+
+    return ARIA_CONNECTORS.map((def) => {
+      const installed = allConnectors.filter((c) => c.connectorId === def.id);
+      const connected = installed.some(
+        (c) => c.status === "connected" || c.status === "mock",
+      );
+      const artifactCount = allArtifacts.filter((a) => {
+        if (a.connectorProvider !== "NATIVE") {
+          const providerMap: Record<string, string> = {
+            GOOGLE_DOCS: "google_docs",
+            GOOGLE_SHEETS: "google_sheets",
+            FIGMA: "figma",
+            LUCIDCHART: "lucidchart",
+          };
+          return providerMap[a.connectorProvider] === def.sourceType;
+        }
+        return a.sourceType === def.sourceType;
+      }).length;
+
+      return {
+        ...def,
+        status: connected ? ("connected" as const) : ("disconnected" as const),
+        artifactCount,
+        productCount: new Set(installed.map((c) => c.projectId)).size,
+      };
+    });
+  }),
 
   logActivity: protectedProcedure
     .input(
