@@ -1,25 +1,52 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-const PUBLIC = ["/", "/sign-in", "/sign-up"];
+const PUBLIC = ["/welcome", "/auth/email", "/auth/signin"];
 
-export function middleware(req: NextRequest) {
+const secret = () =>
+  new TextEncoder().encode(
+    process.env.AUTH_SECRET || "fts-dev-secret-change-in-production"
+  );
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const isPublic =
-    PUBLIC.includes(pathname) ||
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next");
+  
+  if (pathname.startsWith("/api/") || pathname.startsWith("/_next") || pathname.includes(".")) {
+    return NextResponse.next();
+  }
 
-  if (isPublic) return NextResponse.next();
+  const isPublic = PUBLIC.includes(pathname);
+  const sessionCookie = req.cookies.get("fts_session")?.value;
+  
+  let onboardingCompleted = false;
+  let isAuthenticated = false;
 
-  // TEMP: auth bypass for testing — re-enable when login is required again
-  // const session = req.cookies.get("fts_session");
-  // if (!session?.value) {
-  //   const url = req.nextUrl.clone();
-  //   url.pathname = "/sign-in";
-  //   url.searchParams.set("redirect", pathname);
-  //   return NextResponse.redirect(url);
-  // }
+  if (sessionCookie) {
+    try {
+      const { payload } = await jwtVerify(sessionCookie, secret());
+      isAuthenticated = true;
+      onboardingCompleted = payload.onboardingCompleted as boolean;
+    } catch {
+      // Invalid token
+    }
+  }
+
+  if (!isAuthenticated && !isPublic) {
+    return NextResponse.redirect(new URL("/welcome", req.url));
+  }
+
+  if (isAuthenticated) {
+    if (!onboardingCompleted && pathname === "/") {
+      return NextResponse.redirect(new URL("/onboarding/connect-tools", req.url));
+    }
+    if (onboardingCompleted && pathname.startsWith("/onboarding")) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    if (isPublic) {
+      return NextResponse.redirect(new URL(onboardingCompleted ? "/" : "/onboarding/connect-tools", req.url));
+    }
+  }
 
   return NextResponse.next();
 }

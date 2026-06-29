@@ -22,6 +22,7 @@ export type Session = {
   userId: string;
   email: string;
   plan: "FREE" | "PRO";
+  onboardingCompleted: boolean;
 };
 
 export async function hashPassword(password: string) {
@@ -40,6 +41,7 @@ export async function createSession(userId: string) {
     userId: user.id,
     email: user.email,
     plan: user.plan,
+    onboardingCompleted: user.onboardingCompleted,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
@@ -71,6 +73,7 @@ export async function getSession(): Promise<Session | null> {
       userId: payload.userId as string,
       email: payload.email as string,
       plan: payload.plan as "FREE" | "PRO",
+      onboardingCompleted: payload.onboardingCompleted as boolean,
     };
   } catch {
     return null;

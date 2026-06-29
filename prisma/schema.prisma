@@ -9,13 +9,16 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  plan         Plan     @default(FREE)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  passwordHash        String
+  name                String?
+  picture             String?
+  plan                Plan     @default(FREE)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  onboardingCompleted Boolean  @default(false)
+  onboardingStep      Int      @default(0)
 }
 
 enum Plan {
