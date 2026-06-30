@@ -269,12 +269,7 @@ export const artifactsRouter = createTRPCRouter({
         include: { project: true },
       });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
-      if (existing.connectorProvider !== "NATIVE" && existing.connectorEmbedUrl) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Connected files are edited in the external app.",
-        });
-      }
+
 
       const template = resolveTemplate(existing.artifactType);
       const currentContent = parseContent(existing.content);
@@ -292,6 +287,42 @@ export const artifactsRouter = createTRPCRouter({
         result.title ?? existing.title,
         ["pdf", "docx", "md", "xlsx"],
       );
+      
+      let syncError: string | null = null;
+      let sourceStatus = existing.sourceStatus;
+      
+      if (existing.connectorProvider !== "NATIVE" && existing.externalFileId) {
+        try {
+          const providerMap: Record<string, string> = {
+            GOOGLE_DOCS: "google",
+            GOOGLE_SHEETS: "google",
+            GOOGLE_SLIDES: "google",
+            MICROSOFT_WORD: "microsoft",
+          };
+          const pid = providerMap[existing.connectorProvider];
+          if (pid) {
+            const userConnection = await prisma.userConnection.findFirst({
+              where: { userId: ctx.auth.userId, providerId: pid, status: "connected" },
+            });
+            if (userConnection) {
+              const { ProviderManager } = await import("@/lib/connectors/ProviderManager");
+              const provider = ProviderManager.getProvider(pid as "google");
+              if (provider.updateArtifact) {
+                await provider.updateArtifact(userConnection, {
+                  ...existing,
+                  content: JSON.stringify(result.content),
+                  title: result.title ?? existing.title
+                } as any);
+                sourceStatus = "synced";
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[aiRefine] Failed to update connected artifact", err);
+          syncError = err instanceof Error ? err.message : "Failed to sync update";
+          sourceStatus = "sync_error";
+        }
+      }
 
       return prisma.artifact.update({
         where: { id: input.id },
@@ -300,6 +331,8 @@ export const artifactsRouter = createTRPCRouter({
           title: result.title ?? existing.title,
           version: existing.version + 1,
           fileUrls: JSON.stringify(fileUrls),
+          sourceStatus,
+          syncError,
         },
       });
     }),
@@ -317,12 +350,7 @@ export const artifactsRouter = createTRPCRouter({
         where: { id: input.id, userId: ctx.auth.userId },
       });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
-      if (existing.connectorProvider !== "NATIVE" && existing.connectorEmbedUrl) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Connected files are edited in the external app.",
-        });
-      }
+
 
       const content = parseContent(input.content);
       const fileUrls = await generateExports(
@@ -398,5 +426,59 @@ export const artifactsRouter = createTRPCRouter({
       if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
       await prisma.artifact.delete({ where: { id: input.id } });
       return { ok: true };
+    }),
+
+  syncOne: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const artifact = await prisma.artifact.findFirst({
+        where: { id: input.id, userId: ctx.auth.userId },
+      });
+      if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (artifact.connectorProvider === "NATIVE" || !artifact.externalFileId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Artifact is not connected to an external source" });
+      }
+
+      const connection = await prisma.userConnection.findFirst({
+        where: { userId: ctx.auth.userId, providerId: "google", status: "connected" },
+      });
+      if (!connection) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Google Workspace is not connected.",
+        });
+      }
+
+      const { GoogleWorkspaceProvider } = await import(
+        "@/lib/connectors/providers/google-workspace"
+      );
+      const provider = new GoogleWorkspaceProvider();
+
+      try {
+        await provider.syncArtifact(connection, artifact);
+        
+        await prisma.activityEvent.create({
+          data: {
+            projectId: artifact.projectId,
+            eventType: "artifact_sync_completed",
+            title: `Synced "${artifact.title}" with Google Workspace`,
+            metadataJson: JSON.stringify({ artifactId: artifact.id }),
+          },
+        });
+        
+        return { success: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Sync failed";
+        await prisma.activityEvent.create({
+          data: {
+            projectId: artifact.projectId,
+            eventType: "artifact_sync_failed",
+            title: `Failed to sync "${artifact.title}"`,
+            metadataJson: JSON.stringify({ artifactId: artifact.id, error: msg }),
+          },
+        });
+        return { success: false, error: msg };
+      }
     }),
 });

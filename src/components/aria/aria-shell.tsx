@@ -9,6 +9,7 @@ interface AriaShellProps {
   showAskBar?: boolean;
   askPlaceholder?: string;
   projectId?: string;
+  onAskSubmit?: (value: string) => void;
 }
 
 export function AriaShell({
@@ -17,6 +18,7 @@ export function AriaShell({
   showAskBar = true,
   askPlaceholder,
   projectId,
+  onAskSubmit,
 }: AriaShellProps) {
   const [collapsed, setCollapsed] = useState(!!projectId);
 
@@ -31,7 +33,7 @@ export function AriaShell({
         {topBar}
         <main className="flex-1 overflow-y-auto">{children}</main>
         {showAskBar && (
-          <AriaAskBar placeholder={askPlaceholder} projectId={projectId} />
+          <AriaAskBar placeholder={askPlaceholder} projectId={projectId} onSubmit={onAskSubmit} />
         )}
       </div>
     </div>

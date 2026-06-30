@@ -118,6 +118,11 @@ model Artifact {
   externalUrl          String?
   previewAvailable     Boolean           @default(true)
   lastSyncedAt         DateTime?
+  lastExternalModifiedAt DateTime?
+  externalFileId       String?
+  externalFolderId     String?
+  sourceStatus         String            @default("native_draft")
+  syncError            String?
   connectorProvider    ConnectorProvider @default(NATIVE)
   connectorEmbedUrl    String?
   connectorExternalUrl String?

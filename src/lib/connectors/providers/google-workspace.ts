@@ -1,21 +1,54 @@
-import { Artifact, UserConnection } from "@prisma/client";
-import { IProviderConnector, ProviderTokenResponse } from "../types";
+import type { Artifact, UserConnection } from "@/generated/prisma";
+import type { IProviderConnector, ProviderTokenResponse } from "../types";
+import type { ArtifactContent } from "@/types/artifacts";
+import {
+  getOrCreateProductFolder,
+  createGoogleDoc,
+  createGoogleSheet,
+  updateGoogleDoc,
+  updateGoogleSheet,
+  refreshFileMetadata,
+  resolveGoogleFileType,
+} from "@/lib/google/google-drive-publisher";
+import prisma from "@/lib/prisma";
+
+function parseContent(raw: string): ArtifactContent {
+  try {
+    return JSON.parse(raw) as ArtifactContent;
+  } catch {
+    return {};
+  }
+}
 
 export class GoogleWorkspaceProvider implements IProviderConnector {
-  private clientId = process.env.GOOGLE_CLIENT_ID!;
-  private clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-  
+  private get clientId() {
+    return process.env.GOOGLE_WORKSPACE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID!;
+  }
+
+  private get clientSecret() {
+    return process.env.GOOGLE_WORKSPACE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET!;
+  }
+
   getAuthorizationUrl(state: string, redirectUri: string): string {
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     url.searchParams.set("client_id", this.clientId);
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("response_type", "code");
-    // Request scopes for Drive, Docs, Sheets, and Slides
-    url.searchParams.set("scope", "openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/presentations");
-    url.searchParams.set("access_type", "offline"); // Get refresh token
+    url.searchParams.set(
+      "scope",
+      [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/presentations",
+      ].join(" "),
+    );
+    url.searchParams.set("access_type", "offline");
     url.searchParams.set("state", state);
-    url.searchParams.set("prompt", "consent"); // Force consent to ensure refresh token is returned
-    
+    url.searchParams.set("prompt", "consent");
     return url.toString();
   }
 
@@ -32,19 +65,23 @@ export class GoogleWorkspaceProvider implements IProviderConnector {
       }),
     });
 
-    const data = await tokenRes.json();
+    const data = await tokenRes.json() as {
+      access_token: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+    };
     if (!tokenRes.ok) {
       throw new Error(`Google OAuth exchange failed: ${JSON.stringify(data)}`);
     }
 
-    // Attempt to get user identity to link account ID
-    let accountId = undefined;
+    let accountId: string | undefined;
     try {
       const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
         headers: { Authorization: `Bearer ${data.access_token}` },
       });
       if (userRes.ok) {
-        const userData = await userRes.json();
+        const userData = await userRes.json() as { email?: string };
         accountId = userData.email;
       }
     } catch (e) {
@@ -61,46 +98,82 @@ export class GoogleWorkspaceProvider implements IProviderConnector {
   }
 
   async syncArtifact(connection: UserConnection, artifact: Artifact): Promise<void> {
-    // Basic implementation for MVP synchronization
-    if (!artifact.externalUrl || !artifact.connectorExternalUrl) {
-      return; // Nothing to sync yet
+    if (!artifact.externalFileId) return;
+
+    try {
+      const meta = await refreshFileMetadata(connection, artifact.externalFileId);
+      await prisma.artifact.update({
+        where: { id: artifact.id },
+        data: {
+          lastSyncedAt: new Date(),
+          lastExternalModifiedAt: new Date(meta.lastModified),
+          sourceStatus: "synced",
+          syncError: null,
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Sync failed";
+      await prisma.artifact.update({
+        where: { id: artifact.id },
+        data: {
+          sourceStatus: "sync_error",
+          syncError: msg,
+        },
+      });
+      throw err;
     }
-    
-    // In a full implementation, we would diff the external file and internal state
-    // For MVP, we will assume this is a scaffold that will be expanded.
-    console.log(`[GoogleWorkspaceProvider] Syncing artifact ${artifact.id} for connection ${connection.id}`);
   }
 
-  async publishArtifact(connection: UserConnection, artifact: Artifact): Promise<{
+  async publishArtifact(
+    connection: UserConnection,
+    artifact: Artifact,
+    productName?: string,
+  ): Promise<{
     externalUrl: string;
     externalId?: string;
     fileUrls?: string;
+    embedUrl?: string;
+    folderId?: string;
   }> {
-    console.log(`[GoogleWorkspaceProvider] Publishing artifact ${artifact.id} for connection ${connection.id}`);
-    
-    // Create a new Google Doc
-    const res = await fetch("https://docs.googleapis.com/v1/documents", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${connection.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title: artifact.title || "Untitled Document",
-      }),
-    });
+    const content = parseContent(artifact.content);
+    const fileType = resolveGoogleFileType(artifact);
+    const name = productName ?? "Product";
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(`Failed to create Google Doc: ${JSON.stringify(data)}`);
+    // Get or create the product Drive folder
+    const folder = await getOrCreateProductFolder(
+      connection,
+      name,
+      artifact.externalFolderId,
+    );
+
+    let result: { fileId: string; fileUrl: string; embedUrl: string };
+
+    if (fileType === "sheet") {
+      result = await createGoogleSheet(connection, folder.folderId, artifact, content);
+    } else {
+      result = await createGoogleDoc(connection, folder.folderId, artifact, content);
     }
 
-    const documentId = data.documentId;
-    const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
-
     return {
-      externalUrl: documentUrl,
-      externalId: documentId,
+      externalUrl: result.fileUrl,
+      externalId: result.fileId,
+      embedUrl: result.embedUrl,
+      folderId: folder.folderId,
     };
+  }
+
+  async updateArtifact(connection: UserConnection, artifact: Artifact): Promise<void> {
+    if (!artifact.externalFileId) {
+      throw new Error("Artifact has no external file ID");
+    }
+    const content = parseContent(artifact.content);
+    const fileType = resolveGoogleFileType(artifact);
+
+    if (fileType === "sheet") {
+      await updateGoogleSheet(connection, artifact.externalFileId, artifact, content);
+    } else {
+      await updateGoogleDoc(connection, artifact.externalFileId, artifact, content);
+    }
+    await this.syncArtifact(connection, artifact);
   }
 }

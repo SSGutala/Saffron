@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import {
   ExternalLinkIcon,
   Maximize2Icon,
@@ -16,6 +18,7 @@ interface ConnectorEmbedProps {
   embedUrl?: string | null;
   externalUrl?: string | null;
   title?: string;
+  version?: number;
 }
 
 export function ConnectorEmbed({
@@ -23,8 +26,18 @@ export function ConnectorEmbed({
   embedUrl,
   externalUrl,
   title,
+  version,
 }: ConnectorEmbedProps) {
   const meta = CONNECTOR_META[provider];
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    // Periodically refresh the iframe to catch external edits
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -62,11 +75,17 @@ export function ConnectorEmbed({
           )}
         </div>
       </div>
-      <div className="flex-1 min-h-0 bg-white">
+      <div className="flex-1 min-h-0 bg-white relative flex flex-col">
+        {embedUrl && (
+          <div className="p-3 bg-blue-50/50 border-b text-[13px] text-blue-800 shrink-0">
+            <strong>Note:</strong> Google may require full manual editing to happen in Google's editor. You can still use Aria to make AI-powered edits here, or open the file directly in Google.
+          </div>
+        )}
         {embedUrl ? (
           <iframe
-            src={embedUrl}
-            className="w-full h-full border-0"
+            key={`${version}-${tick}`}
+            src={embedUrl.includes("?") ? `${embedUrl}&t=${tick}` : `${embedUrl}?t=${tick}`}
+            className="w-full flex-1 border-0"
             allowFullScreen
             title={`${meta.label} embed`}
           />

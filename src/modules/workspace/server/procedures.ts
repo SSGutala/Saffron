@@ -441,10 +441,168 @@ export const workspaceRouter = createTRPCRouter({
       });
     }),
 
+
   getUserConnections: protectedProcedure.query(async ({ ctx }) => {
     return prisma.userConnection.findMany({
       where: { userId: ctx.auth.userId, status: "connected" },
-      select: { providerId: true, accountId: true }
+      select: { providerId: true, accountId: true, scopes: true, status: true, expiresAt: true }
     });
   }),
+
+  disconnectProvider: protectedProcedure
+    .input(z.object({ providerId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      await prisma.userConnection.deleteMany({
+        where: { userId: ctx.auth.userId, providerId: input.providerId },
+      });
+      return { ok: true };
+    }),
+
+  publishAllToGoogle: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.auth.userId },
+        include: { artifacts: true },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const connection = await prisma.userConnection.findFirst({
+        where: { userId: ctx.auth.userId, providerId: "google", status: "connected" },
+      });
+      if (!connection) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Google Workspace is not connected. Connect it from the Integrations page first.",
+        });
+      }
+
+      const { GoogleWorkspaceProvider } = await import(
+        "@/lib/connectors/providers/google-workspace"
+      );
+      const provider = new GoogleWorkspaceProvider();
+      const displayName = resolveDisplayName(project);
+
+      const results: { artifactId: string; title: string; success: boolean; error?: string; url?: string }[] = [];
+
+      // Only publish native artifacts
+      const nativeArtifacts = project.artifacts.filter(
+        (a) => a.connectorProvider === "NATIVE" && !a.connectorEmbedUrl,
+      );
+
+      for (const artifact of nativeArtifacts) {
+        try {
+          const result = await provider.publishArtifact(connection, artifact, displayName);
+
+          const folderId = result.folderId ?? artifact.externalFolderId;
+
+          await prisma.artifact.update({
+            where: { id: artifact.id },
+            data: {
+              connectorProvider: artifact.kind === "SPREADSHEET" ? "GOOGLE_SHEETS" : "GOOGLE_DOCS",
+              connectorExternalUrl: result.externalUrl,
+              connectorEmbedUrl: result.embedUrl ?? result.externalUrl,
+              externalFileId: result.externalId,
+              externalFolderId: folderId,
+              sourceType: artifact.kind === "SPREADSHEET" ? "google_sheets" : "google_docs",
+              sourceStatus: "published",
+              lastSyncedAt: new Date(),
+              syncError: null,
+              version: artifact.version + 1,
+            },
+          });
+
+          await prisma.activityEvent.create({
+            data: {
+              projectId: input.projectId,
+              eventType: "artifact_published",
+              title: `"${artifact.title}" published to Google ${artifact.kind === "SPREADSHEET" ? "Sheets" : "Docs"}`,
+              metadataJson: JSON.stringify({ artifactId: artifact.id, url: result.externalUrl }),
+            },
+          });
+
+          results.push({ artifactId: artifact.id, title: artifact.title, success: true, url: result.externalUrl });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          await prisma.artifact.update({
+            where: { id: artifact.id },
+            data: { sourceStatus: "sync_error", syncError: msg },
+          });
+
+          await prisma.activityEvent.create({
+            data: {
+              projectId: input.projectId,
+              eventType: "artifact_sync_failed",
+              title: `Failed to publish "${artifact.title}" to Google`,
+              metadataJson: JSON.stringify({ artifactId: artifact.id, error: msg }),
+            },
+          });
+
+          results.push({ artifactId: artifact.id, title: artifact.title, success: false, error: msg });
+        }
+      }
+
+      return { results, publishedCount: results.filter((r) => r.success).length };
+    }),
+
+  publishOneToGoogle: protectedProcedure
+    .input(z.object({ projectId: z.string(), artifactId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.auth.userId },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const artifact = await prisma.artifact.findFirst({
+        where: { id: input.artifactId, userId: ctx.auth.userId },
+      });
+      if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const connection = await prisma.userConnection.findFirst({
+        where: { userId: ctx.auth.userId, providerId: "google", status: "connected" },
+      });
+      if (!connection) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Google Workspace is not connected.",
+        });
+      }
+
+      const { GoogleWorkspaceProvider } = await import(
+        "@/lib/connectors/providers/google-workspace"
+      );
+      const provider = new GoogleWorkspaceProvider();
+      const displayName = resolveDisplayName(project);
+
+      const result = await provider.publishArtifact(connection, artifact, displayName);
+      const folderId = result.folderId ?? artifact.externalFolderId;
+
+      await prisma.artifact.update({
+        where: { id: artifact.id },
+        data: {
+          connectorProvider: artifact.kind === "SPREADSHEET" ? "GOOGLE_SHEETS" : "GOOGLE_DOCS",
+          connectorExternalUrl: result.externalUrl,
+          connectorEmbedUrl: result.embedUrl ?? result.externalUrl,
+          externalFileId: result.externalId,
+          externalFolderId: folderId,
+          sourceType: artifact.kind === "SPREADSHEET" ? "google_sheets" : "google_docs",
+          sourceStatus: "published",
+          lastSyncedAt: new Date(),
+          syncError: null,
+          version: artifact.version + 1,
+        },
+      });
+
+      await prisma.activityEvent.create({
+        data: {
+          projectId: input.projectId,
+          eventType: "artifact_published",
+          title: `"${artifact.title}" published to Google ${artifact.kind === "SPREADSHEET" ? "Sheets" : "Docs"}`,
+          metadataJson: JSON.stringify({ artifactId: artifact.id, url: result.externalUrl }),
+        },
+      });
+
+      return { success: true, url: result.externalUrl, embedUrl: result.embedUrl };
+    }),
 });
+

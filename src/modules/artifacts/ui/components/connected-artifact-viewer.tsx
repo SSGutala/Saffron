@@ -11,6 +11,7 @@ interface ConnectedArtifactViewerProps {
   connectorProvider: string;
   connectorEmbedUrl?: string | null;
   connectorExternalUrl?: string | null;
+  version?: number;
 }
 
 /**
@@ -23,6 +24,7 @@ export function ConnectedArtifactViewer({
   connectorProvider,
   connectorEmbedUrl,
   connectorExternalUrl,
+  version,
 }: ConnectedArtifactViewerProps) {
   const connected = isArtifactConnected({
     connectorProvider,
@@ -36,6 +38,7 @@ export function ConnectedArtifactViewer({
         embedUrl={connectorEmbedUrl}
         externalUrl={connectorExternalUrl}
         title={content.meta?.title}
+        version={version}
       />
     );
   }

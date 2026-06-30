@@ -7,6 +7,7 @@ import {
   Loader2Icon,
   RefreshCwIcon,
   SparklesIcon,
+  CloudIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -47,6 +48,10 @@ export function ArtifactDetailPage({
     trpc.artifacts.getMany.queryOptions({ projectId }),
   );
 
+  const { data: connections = [] } = useQuery(
+    trpc.workspace.getUserConnections.queryOptions()
+  );
+
   const { data: workspace } = useQuery(
     trpc.workspace.getProductWorkspace.queryOptions({ projectId }),
   );
@@ -73,6 +78,35 @@ export function ArtifactDetailPage({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.artifacts.getMany.queryOptions({ projectId }));
         toast.success("Aria updated the artifact");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
+  const publishToGoogle = useMutation(
+    trpc.workspace.publishOneToGoogle.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.artifacts.getMany.queryOptions({ projectId }));
+        toast.success("Published to Google Workspace");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
+  const syncOne = useMutation(
+    trpc.artifacts.syncOne.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.artifacts.getMany.queryOptions({ projectId }));
+        toast.success("Sync completed");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
+  const createMessage = useMutation(
+    trpc.messages.create.mutationOptions({
+      onSuccess: () => {
+        router.push(`/ai-pm/${projectId}`);
       },
       onError: (e) => toast.error(e.message),
     }),
@@ -106,9 +140,21 @@ export function ArtifactDetailPage({
       (e) => e.title.includes(artifact.title) || e.detail?.includes(artifact.title),
     ) ?? [];
 
+  const handleAskSubmit = (value: string) => {
+    toast.info("Aria is updating the artifact...");
+    refine.mutate({
+      id: artifact.id,
+      instruction: value,
+    });
+  };
+
   return (
-    <AriaShell projectId={projectId} topBar={<AriaTopBar />} showAskBar={false}>
-      <div className="flex flex-col h-[calc(100vh-65px)]">
+    <AriaShell
+      projectId={projectId}
+      topBar={<AriaTopBar searchPlaceholder="Search artifacts…" />}
+      onAskSubmit={handleAskSubmit}
+    >
+      <div className="flex flex-col h-[calc(100vh-130px)]">
         <div className="bg-white border-b border-[#e2e8f0] px-6 py-4 shrink-0">
           <button
             type="button"
@@ -120,9 +166,16 @@ export function ArtifactDetailPage({
           </button>
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-xl font-semibold text-[#1e293b]">{artifact.title}</h1>
+              <h1 className="text-xl font-semibold text-[#1e293b] flex items-center gap-2">
+                {artifact.title}
+                {artifact.sourceStatus === "sync_error" && (
+                  <span className="text-xs text-red-500 font-normal bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Sync Error</span>
+                )}
+              </h1>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className="text-xs text-[#64748b]">{sourceLabel}</span>
+                <span className="text-[#e2e8f0]">|</span>
+                <span className="text-xs text-[#64748b] capitalize">{artifact.sourceStatus.replace(/_/g, " ")}</span>
                 <AriaStatusBadge status={mapApprovalStatus(artifact.status)} />
                 <span className="text-xs text-[#94a3b8]">v{artifact.version}</span>
               </div>
@@ -136,31 +189,53 @@ export function ArtifactDetailPage({
                   className="h-9 px-3 rounded-lg border border-[#e2e8f0] text-sm text-[#64748b] flex items-center gap-2 hover:bg-[#f8f9fb]"
                 >
                   <ExternalLinkIcon className="size-4" />
-                  Open in source
+                  Open in {artifact.connectorProvider === "GOOGLE_DOCS" ? "Docs" : artifact.connectorProvider === "GOOGLE_SHEETS" ? "Sheets" : "source"}
                 </a>
+              )}
+              {artifact.connectorProvider === "NATIVE" && connections.some(c => c.providerId === "google") && (
+                <button
+                  type="button"
+                  disabled={publishToGoogle.isPending}
+                  onClick={() => publishToGoogle.mutate({ projectId, artifactId: artifact.id })}
+                  className="h-9 px-3 rounded-lg border border-[#e2e8f0] text-sm text-[#64748b] flex items-center gap-2 hover:bg-[#f8f9fb]"
+                >
+                  <CloudIcon className="size-4" />
+                  {publishToGoogle.isPending ? "Publishing..." : "Publish to Google"}
+                </button>
               )}
               <button
                 type="button"
+                disabled={syncOne.isPending}
                 onClick={() => {
-                  queryClient.invalidateQueries(
-                    trpc.artifacts.getMany.queryOptions({ projectId }),
-                  );
-                  toast.success("Refreshed");
+                  if (artifact.connectorProvider !== "NATIVE") {
+                    syncOne.mutate({ id: artifact.id });
+                  } else {
+                    queryClient.invalidateQueries(trpc.artifacts.getMany.queryOptions({ projectId }));
+                    toast.success("Refreshed");
+                  }
                 }}
                 className="h-9 px-3 rounded-lg border border-[#e2e8f0] text-sm text-[#64748b] flex items-center gap-2 hover:bg-[#f8f9fb]"
               >
-                <RefreshCwIcon className="size-4" />
+                <RefreshCwIcon className={cn("size-4", syncOne.isPending && "animate-spin")} />
                 Refresh
               </button>
               <button
                 type="button"
                 disabled={refine.isPending}
-                onClick={() =>
-                  refine.mutate({
-                    id: artifact.id,
-                    instruction: "Improve and expand this artifact based on the current product context.",
-                  })
-                }
+                onClick={() => {
+                  const input = document.querySelector('input[placeholder*="Ask Aria"]') as HTMLInputElement;
+                  if (input) {
+                    input.focus();
+                    input.value = `Update "${artifact.title}": `;
+                    // Trigger react synthetic event for onChange
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                      window.HTMLInputElement.prototype,
+                      "value"
+                    )?.set;
+                    nativeInputValueSetter?.call(input, input.value);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                }}
                 className="h-9 px-3 rounded-lg border border-[#e2e8f0] text-sm text-[#64748b] flex items-center gap-2 hover:bg-[#f8f9fb]"
               >
                 <SparklesIcon className="size-4" />
@@ -207,6 +282,7 @@ export function ArtifactDetailPage({
                 connectorProvider={artifact.connectorProvider}
                 connectorEmbedUrl={artifact.connectorEmbedUrl}
                 connectorExternalUrl={artifact.connectorExternalUrl}
+                version={artifact.version}
               />
             )}
             {tab === "Details" && (
@@ -216,7 +292,9 @@ export function ArtifactDetailPage({
                 <p><strong>Owner:</strong> {artifact.owner ?? "Aria"}</p>
                 <p><strong>Created:</strong> {new Date(artifact.createdAt).toLocaleString()}</p>
                 <p><strong>Status:</strong> {artifact.status}</p>
-                <p><strong>Sync:</strong> {artifact.syncStatus ?? "native_draft"}</p>
+                <p><strong>Sync Source:</strong> {artifact.sourceStatus ?? "native_draft"}</p>
+                {artifact.lastSyncedAt && <p><strong>Last Synced:</strong> {new Date(artifact.lastSyncedAt).toLocaleString()}</p>}
+                {artifact.syncError && <p className="text-red-500"><strong>Sync Error:</strong> {artifact.syncError}</p>}
               </div>
             )}
             {tab === "Activity" && (

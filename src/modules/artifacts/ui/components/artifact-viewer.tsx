@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckIcon,
   ExternalLinkIcon,
@@ -70,7 +70,7 @@ export function ConnectedArtifactViewerPage({
   const targetProvider = connectorProviderForArtifactKind(artifact.kind);
   const connectorLabel = CONNECTOR_META[targetProvider].label;
 
-  const { data: connections = [] } = trpc.workspace.getUserConnections.useQuery();
+  const { data: connections = [] } = useQuery(trpc.workspace.getUserConnections.queryOptions());
 
   const content = parseArtifactContent(artifact.content);
   const impact = computeImpactForArtifact(artifact, allArtifacts);
@@ -122,7 +122,7 @@ export function ConnectedArtifactViewerPage({
       GOOGLE_SLIDES: "google",
     };
     const connectionId = providerMap[targetProvider as string];
-    const isAuthorized = connectionId && connections.some(c => c.providerId === connectionId);
+    const isAuthorized = connectionId && connections.some((c: { providerId: string }) => c.providerId === connectionId);
 
     if (isAuthorized) {
       toast.loading(`Publishing to ${connectorLabel}...`, { id: "publish" });

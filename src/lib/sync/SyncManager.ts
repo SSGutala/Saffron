@@ -1,4 +1,4 @@
-import { Artifact, UserConnection } from "@prisma/client";
+import { Artifact, UserConnection } from "@/generated/prisma";
 import { ProviderManager } from "../connectors/ProviderManager";
 
 export class SyncManager {

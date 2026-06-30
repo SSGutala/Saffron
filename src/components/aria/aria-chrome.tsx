@@ -203,9 +203,11 @@ export function AriaTopBar({
 export function AriaAskBar({
   placeholder = "Ask Aria anything about your product…",
   projectId,
+  onSubmit,
 }: {
   placeholder?: string;
   projectId?: string;
+  onSubmit?: (value: string) => void;
 }) {
   const router = useRouter();
   const trpc = useTRPC();
@@ -220,6 +222,12 @@ export function AriaAskBar({
   const submit = async () => {
     const text = value.trim();
     if (!text) return;
+    
+    if (onSubmit) {
+      onSubmit(text);
+      setValue("");
+      return;
+    }
 
     if (projectId) {
       await createMessage.mutateAsync({ projectId, value: text });

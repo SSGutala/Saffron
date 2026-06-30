@@ -1,4 +1,4 @@
-import { Artifact, UserConnection } from "@prisma/client";
+import { Artifact, UserConnection } from "@/generated/prisma";
 
 export interface ProviderAuthUrlResponse {
   url: string;
@@ -37,4 +37,9 @@ export interface IProviderConnector {
     externalId?: string;
     fileUrls?: string;
   }>;
+
+  /**
+   * Updates an existing artifact in the external provider.
+   */
+  updateArtifact?(connection: UserConnection, artifact: Artifact): Promise<void>;
 }
