@@ -23,10 +23,7 @@ import {
 } from "@/types/artifacts";
 import { useTRPC } from "@/trpc/client";
 import { ConnectConnectorSheet } from "./connect-connector-sheet";
-import {
-  ConnectedArtifactViewer,
-  parseFileUrls,
-} from "./connected-artifact-viewer";
+import { ConnectedArtifactViewer, parseFileUrls } from "./connected-artifact-viewer";
 import { ImpactPanel } from "@/modules/workspace/ui/components/impact-panel";
 import { computeImpactForArtifact } from "@/lib/aria/impact-engine";
 
@@ -73,6 +70,8 @@ export function ConnectedArtifactViewerPage({
   const targetProvider = connectorProviderForArtifactKind(artifact.kind);
   const connectorLabel = CONNECTOR_META[targetProvider].label;
 
+  const { data: connections = [] } = trpc.workspace.getUserConnections.useQuery();
+
   const content = parseArtifactContent(artifact.content);
   const impact = computeImpactForArtifact(artifact, allArtifacts);
 
@@ -104,6 +103,37 @@ export function ConnectedArtifactViewerPage({
       },
     }),
   );
+
+  const publish = useMutation(
+    trpc.artifacts.publishToIntegration.mutationOptions({
+      onSuccess: () => {
+        toast.success(`Connected and published to ${connectorLabel}`);
+        invalidate();
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
+  const handleConnectClick = () => {
+    // Map target providers to user connection IDs
+    const providerMap: Record<string, string> = {
+      GOOGLE_DOCS: "google",
+      GOOGLE_SHEETS: "google",
+      GOOGLE_SLIDES: "google",
+    };
+    const connectionId = providerMap[targetProvider as string];
+    const isAuthorized = connectionId && connections.some(c => c.providerId === connectionId);
+
+    if (isAuthorized) {
+      toast.loading(`Publishing to ${connectorLabel}...`, { id: "publish" });
+      publish.mutate(
+        { id: artifact.id, providerId: connectionId },
+        { onSettled: () => toast.dismiss("publish") }
+      );
+    } else {
+      setConnectOpen(true);
+    }
+  };
 
   const syncStatus = connected ? "embedded" : "native_draft";
 
@@ -150,9 +180,14 @@ export function ConnectedArtifactViewerPage({
             )}
 
             {!connected && (
-              <Button size="sm" variant="outline" onClick={() => setConnectOpen(true)}>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleConnectClick}
+                disabled={publish.isPending}
+              >
                 <PlugIcon className="size-3.5 mr-1" />
-                Connect
+                {publish.isPending ? "Connecting..." : "Connect"}
               </Button>
             )}
 

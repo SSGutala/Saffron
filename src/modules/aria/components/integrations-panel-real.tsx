@@ -121,9 +121,23 @@ export function IntegrationsPanelReal({ projectId }: { projectId?: string }) {
                 <button
                   type="button"
                   disabled={connect.isPending}
-                  onClick={() =>
-                    connect.mutate({ projectId, connectorId: connector.id })
-                  }
+                  onClick={() => {
+                    const REAL_PROVIDER_MAP: Record<string, string> = {
+                      google_docs: "google",
+                      google_sheets: "google",
+                      google_slides: "google",
+                      microsoft_word: "microsoft",
+                      excel: "microsoft",
+                    };
+                    const realProvider = REAL_PROVIDER_MAP[connector.id];
+                    
+                    if (realProvider === "google") {
+                      window.location.href = "/api/connectors/google";
+                      return;
+                    }
+
+                    connect.mutate({ projectId, connectorId: connector.id });
+                  }}
                   className={cn(
                     "text-sm font-medium",
                     connected

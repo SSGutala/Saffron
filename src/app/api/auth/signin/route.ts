@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       email: user.email,
       name: user.name,
       plan: user.plan,
+      onboardingCompleted: user.onboardingCompleted,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

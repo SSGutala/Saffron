@@ -23,11 +23,16 @@ export default function EmailSignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || "Sign up failed");
       }
-      window.location.href = "/";
+      
+      if (!data.onboardingCompleted) {
+        window.location.href = "/onboarding/connect-tools";
+      } else {
+        window.location.href = "/";
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

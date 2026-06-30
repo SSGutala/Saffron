@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Info } from "lucide-react";
 import Image from "next/image";
+import { useTRPC } from "@/trpc/client";
+import { useQuery } from "@tanstack/react-query";
 
 const integrations = [
   {
@@ -57,18 +59,19 @@ const integrations = [
 ];
 
 export default function ConnectToolsPage() {
-  const [connectedState, setConnectedState] = useState<Record<string, boolean>>({});
+  const trpc = useTRPC();
+  const { data: connections = [] } = useQuery(trpc.workspace.getUserConnections.queryOptions());
   const [message, setMessage] = useState("");
   const [completing, setCompleting] = useState(false);
 
   const handleConnect = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     if (id === "google") {
-      setMessage("Google Workspace connection is not configured yet. You can continue without connecting.");
+      window.location.href = "/api/connectors/google";
     } else if (id === "microsoft") {
       setMessage("Microsoft 365 connection is not configured yet. You can continue without connecting.");
     } else {
-      setConnectedState(prev => ({ ...prev, [id]: !prev[id] }));
+      setMessage(`${id} connection is not configured yet.`);
     }
   };
 
@@ -107,7 +110,7 @@ export default function ConnectToolsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-10 sm:mb-12">
             {integrations.map((tool) => {
-              const isConnected = connectedState[tool.id];
+              const isConnected = connections.some(c => c.providerId === tool.id);
               return (
                 <div key={tool.id} className="bg-[#1a1a24] border border-white/5 rounded-xl p-5 flex flex-col hover:border-white/10 transition-colors">
                   <div className="flex items-center gap-3 mb-4">

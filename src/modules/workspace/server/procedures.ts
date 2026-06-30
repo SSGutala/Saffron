@@ -194,16 +194,32 @@ export const workspaceRouter = createTRPCRouter({
       });
       if (!project) throw new TRPCError({ code: "NOT_FOUND" });
 
+      const userConnections = await prisma.userConnection.findMany({
+        where: { userId: ctx.auth.userId, status: "connected" }
+      });
+
+      const REAL_PROVIDER_MAP: Record<string, string> = {
+        google_docs: "google",
+        google_sheets: "google",
+        google_slides: "google",
+        microsoft_word: "microsoft",
+        excel: "microsoft",
+      };
+
       return ARIA_CONNECTORS.map((def) => {
         const installed = project.connectors.find((c) => c.connectorId === def.id);
         const usedByProduct = project.artifacts.some((a) => {
           const source = a.sourceType ?? "native";
           return source === def.sourceType || a.connectorProvider !== "NATIVE";
         });
+        
+        const realProvider = REAL_PROVIDER_MAP[def.id];
+        const isRealConnected = realProvider && userConnections.some(c => c.providerId === realProvider);
+        const status = isRealConnected ? "connected" : (installed?.status ?? "disconnected");
 
         return {
           ...def,
-          status: (installed?.status ?? "disconnected") as
+          status: status as
             | "connected"
             | "mock"
             | "disconnected"
@@ -350,14 +366,34 @@ export const workspaceRouter = createTRPCRouter({
       include: { connectors: true, artifacts: true },
     });
 
+    const userConnections = await prisma.userConnection.findMany({
+      where: { userId: ctx.auth.userId, status: "connected" }
+    });
+
+    const REAL_PROVIDER_MAP: Record<string, string> = {
+      google_docs: "google",
+      google_sheets: "google",
+      google_slides: "google",
+      microsoft_word: "microsoft",
+      excel: "microsoft",
+    };
+
     const allConnectors = projects.flatMap((p) => p.connectors);
     const allArtifacts = projects.flatMap((p) => p.artifacts);
 
     return ARIA_CONNECTORS.map((def) => {
       const installed = allConnectors.filter((c) => c.connectorId === def.id);
-      const connected = installed.some(
-        (c) => c.status === "connected" || c.status === "mock",
-      );
+      
+      const realProvider = REAL_PROVIDER_MAP[def.id];
+      let connected = false;
+      if (realProvider) {
+        connected = userConnections.some(c => c.providerId === realProvider);
+      } else {
+        connected = installed.some(
+          (c) => c.status === "connected" || c.status === "mock",
+        );
+      }
+
       const artifactCount = allArtifacts.filter((a) => {
         if (a.connectorProvider !== "NATIVE") {
           const providerMap: Record<string, string> = {
@@ -404,4 +440,11 @@ export const workspaceRouter = createTRPCRouter({
         },
       });
     }),
+
+  getUserConnections: protectedProcedure.query(async ({ ctx }) => {
+    return prisma.userConnection.findMany({
+      where: { userId: ctx.auth.userId, status: "connected" },
+      select: { providerId: true, accountId: true }
+    });
+  }),
 });

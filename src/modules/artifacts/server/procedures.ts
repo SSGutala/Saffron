@@ -134,6 +134,55 @@ export const artifactsRouter = createTRPCRouter({
       });
     }),
 
+  publishToIntegration: protectedProcedure
+    .input(z.object({ id: z.string(), providerId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const artifact = await prisma.artifact.findFirst({
+        where: { id: input.id, userId: ctx.auth.userId },
+      });
+      if (!artifact) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (artifact.connectorProvider !== "NATIVE" && artifact.connectorEmbedUrl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This file is already connected to an external app.",
+        });
+      }
+
+      const connection = await prisma.userConnection.findFirst({
+        where: { userId: ctx.auth.userId, providerId: input.providerId, status: "connected" }
+      });
+
+      if (!connection) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Provider not connected.",
+        });
+      }
+
+      const { SyncManager } = await import("@/lib/sync/SyncManager");
+      const result = await SyncManager.publishArtifact(connection, artifact);
+      
+      const content = parseContent(artifact.content);
+      const { provider, fileUrls } = await prepareConnectorHandoff({
+        kind: artifact.kind,
+        content,
+        title: artifact.title,
+      });
+
+      return prisma.artifact.update({
+        where: { id: artifact.id },
+        data: {
+          connectorProvider: provider,
+          connectorEmbedUrl: result.externalUrl,
+          connectorExternalUrl: result.externalUrl,
+          content: handedOffContent(artifact.title),
+          fileUrls: JSON.stringify(fileUrls),
+          version: artifact.version + 1,
+        },
+      });
+    }),
+
   getOne: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
