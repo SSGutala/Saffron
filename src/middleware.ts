@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const PUBLIC = ["/welcome", "/auth/email", "/auth/signin"];
+const PUBLIC = ["/welcome", "/auth/signup", "/auth/email", "/auth/signin"];
 
 const secret = () =>
   new TextEncoder().encode(

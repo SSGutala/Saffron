@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AriaAskBar, AriaSidebar, AriaTopBar } from "./aria-chrome";
 
 interface AriaShellProps {
@@ -18,7 +18,11 @@ export function AriaShell({
   askPlaceholder,
   projectId,
 }: AriaShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(!!projectId);
+
+  useEffect(() => {
+    setCollapsed(!!projectId);
+  }, [projectId]);
 
   return (
     <div className="aria-app flex h-screen overflow-hidden">

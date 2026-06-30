@@ -2,15 +2,17 @@
 
 export const WORKSPACE_SECTIONS = [
   { id: "overview", label: "Overview" },
-  { id: "timeline", label: "Timeline" },
-  { id: "lifecycle", label: "Lifecycle" },
+  { id: "brief", label: "Product Brief", group: "Planning" },
+  { id: "requirements", label: "Requirements", group: "Planning" },
+  { id: "ux", label: "UX / Design", group: "Design" },
+  { id: "data", label: "Data Model", group: "Design" },
+  { id: "backlog", label: "Backlog", group: "Delivery" },
+  { id: "workflows", label: "Workflows", group: "Delivery" },
+  { id: "testing", label: "Testing", group: "Delivery" },
+  { id: "releases", label: "Releases", group: "Delivery" },
   { id: "artifacts", label: "Artifacts" },
-  { id: "backlog", label: "Backlog" },
-  { id: "automations", label: "Automations" },
-  { id: "testing", label: "Testing" },
-  { id: "releases", label: "Releases" },
-  { id: "integrations", label: "Integrations" },
   { id: "activity", label: "Activity" },
+  { id: "settings", label: "Product Settings" },
 ] as const;
 
 export type WorkspaceSectionId = (typeof WORKSPACE_SECTIONS)[number]["id"];
@@ -245,17 +247,16 @@ export const STAGE_TO_ARTIFACT_TYPE: Record<string, AriaArtifactType> = {
   app_spec: "app_spec",
 };
 
-/** Stage key → workspace section for navigation */
 export const STAGE_TO_WORKSPACE_SECTION: Record<string, WorkspaceSectionId> = {
-  intake_summary: "artifacts",
-  product_brief: "artifacts",
-  prd: "artifacts",
-  brd: "artifacts",
-  workflow_map: "artifacts",
-  data_model: "artifacts",
-  automation_model: "automations",
-  ux_recommendation: "artifacts",
-  app_spec: "artifacts",
+  intake_summary: "brief",
+  product_brief: "brief",
+  prd: "requirements",
+  brd: "requirements",
+  workflow_map: "workflows",
+  data_model: "data",
+  automation_model: "artifacts",
+  ux_recommendation: "ux",
+  app_spec: "requirements",
   epic: "backlog",
   user_story: "backlog",
   test_case: "testing",

@@ -60,17 +60,8 @@ export function ProductWorkspace({
   const sectionArtifacts = useMemo(() => {
     if (!workspace?.artifacts) return [];
     if (section === "artifacts") return workspace.artifacts;
-    if (section === "backlog") {
-      return workspace.artifacts.filter((a) => a.workspaceSection === "backlog");
-    }
-    if (section === "automations") {
-      return workspace.artifacts.filter((a) => a.workspaceSection === "automations");
-    }
-    if (section === "testing") {
-      return workspace.artifacts.filter((a) => a.workspaceSection === "testing");
-    }
-    if (section === "releases") {
-      return workspace.artifacts.filter((a) => a.workspaceSection === "releases");
+    if (["backlog", "testing", "releases", "workflows", "brief", "requirements", "ux", "data"].includes(section)) {
+      return workspace.artifacts.filter((a) => a.workspaceSection === section);
     }
     return [];
   }, [workspace?.artifacts, section]);
@@ -199,7 +190,7 @@ export function ProductWorkspace({
             />
           )}
 
-          {["backlog", "automations", "testing", "releases"].includes(section) && (
+          {["backlog", "testing", "releases", "workflows", "brief", "requirements", "ux", "data"].includes(section) && (
             <ArtifactsByLifecycle
               artifacts={sectionArtifacts}
               onPreview={(id) => {
@@ -211,7 +202,7 @@ export function ProductWorkspace({
             />
           )}
 
-          {section === "integrations" && <IntegrationsPanel projectId={projectId} />}
+          {section === "settings" && <IntegrationsPanel projectId={projectId} />}
 
           {section === "activity" && (
             <div className="p-6 max-w-2xl space-y-4">
